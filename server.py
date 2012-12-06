@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 
 from cookielib import LWPCookieJar
 
@@ -13,15 +14,24 @@ from application import ITCApplication
 ITUNESCONNECT_URL = 'https://itunesconnect.apple.com'
 ITUNESCONNECT_MAIN_PAGE_URL = '/WebObjects/iTunesConnect.woa'
 
+class ComplexEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if hasattr(obj,'reprJSON'):
+            return obj.__dict__
+        else:
+            return json.JSONEncoder.default(self, obj)
+
 class ITCServer(object):
-    def __init__(self, info, cookie_file):
+
+    def __init__(self, info, cookie_file, storage_file):
         self._info                  = info
         self.cookie_file            = cookie_file
         self.cookie_jar             = LWPCookieJar(self.cookie_file)
+        self.storage_file           = storage_file
+        self.applications           = []
         self._manageAppsURL         = None
         self._getApplicationListURL = None
         self._logoutURL             = None
-        self.applications           = None
         self._loginPageURL          = ITUNESCONNECT_MAIN_PAGE_URL
 
         if self.cookie_file:
@@ -30,17 +40,38 @@ class ITCServer(object):
             except IOError:
                 pass
 
+        if self.storage_file and os.path.exists(self.storage_file):
+            try:
+                fp = open(self.storage_file)
+                appsJSON = json.load(fp)
+                fp.close()
+                for appJSON in appsJSON:
+                    application = ITCApplication(dict=appJSON)
+                    self.applications.append(application)
+            except ValueError:
+                pass
+            except IOError:
+                pass
+
         self.isLoggedIn = self.checkLogin()
+
+    def cleanup(self):
+        if os.path.exists(self.cookie_file):
+            os.remove(self.cookie_file)
+
+        if os.path.exists(self.storage_file):
+            os.remove(self.storage_file)
+
+        self.cookie_jar = LWPCookieJar(self.cookie_file)
+        
 
     def logout(self):
         if not self.isLoggedIn or not self._logoutURL:
             return
 
         requests.get(ITUNESCONNECT_URL + self._logoutURL, cookies=self.cookie_jar)
-        self.cookie_jar = None
-        
-        if os.path.exists(self.cookie_file):
-            os.remove(self.cookie_file)
+        self.cleanup()
+
 
     def login(self):
         if self.isLoggedIn:
@@ -68,8 +99,8 @@ class ITCServer(object):
         else:
             raise
 
+
     def checkLogin(self, mainPageText=None):
-        # print 'Check login'
         if mainPageText == None:
             # print 'Check login: requesting main page'
             # print 'Check login: cookie jar: '
@@ -79,6 +110,8 @@ class ITCServer(object):
                 # print 'Check login: got main page'
                 mainPageText = loginResponse.text
             else:
+                print 'Check login: not logged in!'
+                self.cleanup()
                 return False
 
         parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder("lxml"), namespaceHTMLElements=False)
@@ -87,12 +120,14 @@ class ITCServer(object):
         passwordInput = tree.xpath("//input[@name='theAccountPW']")
 
         if (len(usernameInput) == 1) and (len(passwordInput) == 1):
-            # print 'Check login: username and password text fields found. Not logged in'
+            print 'Check login: not logged in!'
+            self.cleanup()
             return False
 
-        # print 'Check login: logged in!'
+        print 'Check login: logged in!'
         self.parseSessionURLs(tree)
         return True
+
 
     def parseSessionURLs(self, xmlTree):
         manageAppsLink = xmlTree.xpath("//a[.='Manage Your Applications']")
@@ -108,6 +143,7 @@ class ITCServer(object):
 
         print 'manage apps url: ' + self._manageAppsURL
         print 'logout url: ' + self._logoutURL
+
 
     def getApplicationsList(self):
         if self._manageAppsURL == None:
@@ -136,11 +172,23 @@ class ITCServer(object):
         appsTree = parser.parse(appsListResponse.text)
         applicationRows = appsTree.xpath("//div[@id='software-result-list']/div[@class='resultList']/table/tbody/tr[not(contains(@class, 'column-headers'))]")
 
+        if len(applicationRows) > 0:
+            self.applications = []
+
         for applicationRow in applicationRows:
             tds = applicationRow.xpath("td")
             nameLink = tds[0].xpath("div/p/a")
             name = nameLink[0].text.strip()
             link = nameLink[0].attrib["href"]
             applicationId = tds[4].xpath("div/p")[0].text.strip()
-            application = ITCApplication(name, applicationId, link)
+            application = ITCApplication(name=name, applicationId=applicationId, link=link)
+            self.applications.append(application)
+
+        if (len(self.applications) > 0) and (len(applicationRows) > 0):
+            if os.path.exists(self.storage_file):
+                os.remove(self.storage_file)
+
+            fp = open(self.storage_file, "w")
+            fp.write(json.dumps(self.applications, cls=ComplexEncoder))
+            fp.close()
 

@@ -5,8 +5,8 @@ import os
 import argparse
 import logging
 import platform
-import re
 import sys
+import json
 
 from server import ITCServer 
 
@@ -47,10 +47,10 @@ def main():
 
     # Load the config and cookie files
     cookie_file = os.path.join(homepath, ".itc-cli-cookies.txt")
+    storage_file = os.path.join(homepath, ".itc-cli-storage.txt")
 
     args = parse_options(sys.argv[1:])
-    # options.debug = True
-
+    
     debug('Python %s' % sys.version)
     debug('Running on %s' % (platform.platform()))
     debug('Home = %s' % homepath)
@@ -64,10 +64,14 @@ def main():
     if options.password == None:
         options.passowrd = raw_input('Password: ')
 
-    server = ITCServer(options, cookie_file)
+    server = ITCServer(options, cookie_file, storage_file)
 
     server.login()
-    server.getApplicationsList()
+
+    if len(server.applications) == 0:
+        server.getApplicationsList()
+        
+    print server.applications
 
 if __name__ == "__main__":
     main()

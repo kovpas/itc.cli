@@ -7,6 +7,7 @@ import logging
 import platform
 import sys
 import json
+import getpass
 
 from server import ITCServer 
 
@@ -61,17 +62,19 @@ def main():
     if options.username == None:
         options.username = raw_input('Username: ')
 
-    if options.password == None:
-        options.passowrd = raw_input('Password: ')
-
     server = ITCServer(options, cookie_file, storage_file)
 
-    server.login()
+    if not server.isLoggedIn:
+        if options.password == None:
+            options.password = getpass.getpass()
+        server.login()
 
     if len(server.applications) == 0:
         server.getApplicationsList()
         
     print server.applications
+
+    server.applications[0].editVersion(None)
 
 if __name__ == "__main__":
     main()

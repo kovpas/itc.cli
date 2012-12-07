@@ -12,7 +12,8 @@ import getpass
 from server import ITCServer 
 
 options = None
-configs = []
+config = {}
+languages_map = {}
 
 def debug(s):
     if options and options.debug:
@@ -24,6 +25,8 @@ def parse_options(args):
                        help='iTunesConnect username')
     parser.add_argument('--password', dest='password',
                        help='iTunesConnect password')
+    parser.add_argument('--config_file', dest='config_file',
+                       help='Configuration file. For more details on format see https://github.com/kovpas/itc.cli')
     parser.add_argument('--debug', '-d', dest='debug', default=False, action='store_true',
                        help='run script in debug mode')
 
@@ -31,6 +34,16 @@ def parse_options(args):
     globals()["options"] = args
 
     return args
+
+
+def parse_configuration_file():
+    if options.config_file != None and os.path.exists(options.config_file):
+        fp = open(options.config_file)
+        config = json.load(fp)
+        fp.close()
+
+    return config
+
 
 def main():
     origcwd = os.path.abspath(os.getcwd())
@@ -74,7 +87,16 @@ def main():
         
     print server.applications
 
-    server.applications[0].editVersion(None)
+    cfg = parse_configuration_file()
+    applicationId = cfg['application id']
+    application = None
+    actions = cfg['commands']
+
+    if applicationId in server.applications:
+        application = server.applications[applicationId]
+        application.editVersion(actions)
+        # languages = 
+
 
 if __name__ == "__main__":
     main()

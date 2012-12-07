@@ -1,5 +1,8 @@
 import os
 import sys
+import re
+import urllib2
+import json
 
 import requests
 from lxml import etree
@@ -8,9 +11,22 @@ import html5lib
 
 ITUNESCONNECT_URL = 'https://itunesconnect.apple.com'
 
+class UPLOAD_TYPE:
+    iPad = 0
+    iPhone = 1
+    iPhone5 = 2
+
+class EnhancedFile(file):
+    def __init__(self, *args, **keyws):
+        file.__init__(self, *args, **keyws)
+
+    def __len__(self):
+        return int(os.fstat(self.fileno())[6])
+
 class ITCApplication(object):
     def __init__(self, name=None, applicationId=None, link=None, dict=None, cookie_jar=None):
         if (dict):
+            print dict
             name = dict['name']
             link = dict['applicationLink']
             applicationId = dict['applicationId']
@@ -19,6 +35,8 @@ class ITCApplication(object):
         self.applicationLink = link
         self.applicationId = applicationId
         self.versions = {}
+        self._uploadSessionData = {}
+        self._images = {}
 
         self._cookie_jar = cookie_jar
 
@@ -69,9 +87,90 @@ class ITCApplication(object):
 
             self.versions[versionString] = version
 
+    def __parseURLSFromScript(self, script):
+        matches = re.search('{.*statusURL:\s\'([^\']+)\',\sdeleteURL:\s\'([^\']+)\',\ssortURL:\s\'([^\']+)\'', script) 
+        return {'statusURL': matches.group(1)
+                , 'deleteURL': matches.group(2)
+                , 'sortURL': matches.group(3)}
+
+    def __imagesForDevice(self, device_type):
+        if len(self._uploadSessionData) == 0:
+            raise 'No session keys found'
+
+        statusURL = self._uploadSessionData[device_type]['statusURL']
+        result = None
+
+        if statusURL:
+            status = requests.get(ITUNESCONNECT_URL + statusURL
+                                  , cookies=self._cookie_jar)
+            statusJSON = json.loads(status.content)
+            result = []
+
+            for i in range(1, 5):
+                key = 'pictureFile_' + str(i)
+                if key in statusJSON:
+                    image = {}
+                    pictureFile = statusJSON[key]
+                    image['url'] = pictureFile['url']
+                    image['orientation'] = pictureFile['orientation']
+                    image['id'] = pictureFile['pictureId']
+                    result.append(image)
+                else:
+                    break
+
+        return result
+
+
+    def __uploadScreenshot(self, upload_type, file_path):
+        if self._uploadSessionId == None or len(self._uploadSessionData) == 0:
+            raise 'Trying to upload screenshot without proper session keys'
+
+        uploadScreenshotAction = self._uploadSessionData[upload_type]['action']
+        uploadScreenshotKey = self._uploadSessionData[upload_type]['key']
+
+        if uploadScreenshotAction != None and uploadScreenshotKey != None and os.path.exists(file_path):
+            headers = { 'x-uploadKey' : uploadScreenshotKey
+                        , 'x-uploadSessionID' : self._uploadSessionId
+                        , 'x-original-filename' : os.path.basename(file_path)
+                        , 'Content-Type': 'image/png'}
+            print 'Uploading image ' + file_path
+            r = requests.post(ITUNESCONNECT_URL + uploadScreenshotAction
+                                , cookies=self._cookie_jar
+                                , headers=headers
+                                , data=EnhancedFile(file_path, 'rb'))
+
+            if r.content == 'success':
+                newImages = self.__imagesForDevice(upload_type)
+                if len(newImages) > len(self._images[upload_type]):
+                    print 'Image uploaded'
+                else:
+                    print 'Something\'s wrong...' 
+
+
+    def __deleteScreenshot(self, type, screenshot_id):
+        if len(self._uploadSessionData) == 0:
+            raise 'Trying to delete screenshot without proper session keys'
+
+        deleteScreenshotAction = self._uploadSessionData[type]['deleteURL']
+        if deleteScreenshotAction != None:
+            r = requests.get(ITUNESCONNECT_URL + deleteScreenshotAction + "?pictureId=" + screenshot_id
+                    , cookies=self._cookie_jar)
+
+            # TODO: check status
+
+
+    def __sortScreenshots(self, type, newScreenshotsIndexes):
+        if len(self._uploadSessionData) == 0:
+            raise 'Trying to sort screenshots without proper session keys'
+
+        sortScreenshotsAction = self._uploadSessionData[type]['sortURL']
+
+        if sortScreenshotsAction != None:
+            r = requests.get(ITUNESCONNECT_URL + sortScreenshotsAction + "?sortedIDs=" + (",".join(newScreenshotsIndexes))
+                    , cookies=self._cookie_jar)
 
     def editVersion(self, dataDict, versionString=None):
-        if len(dataDict) == 0: # nothing to change
+        if dataDict == None or len(dataDict) == 0: # nothing to change
             return
 
         if len(self.versions) == 0:
@@ -109,12 +208,17 @@ class ITCApplication(object):
             raise 'Wrong response from iTunesConnect. Status code: ' + str(editResponse.status_code)
 
         editTree = parser.parse(editResponse.text)
+        hasWhatsNew = False
 
         submitAction = editTree.xpath("//div[@class='lcAjaxLightboxContentsWrapper']/div[@class='lcAjaxLightboxContents']/@action")[0]
 
         appNameName     = editTree.xpath("//div[@id='appNameUpdateContainerId']//input/@name")[0]
         descriptionName = editTree.xpath("//div[@id='descriptionUpdateContainerId']//textarea/@name")[0]
-        whatsNewName    = editTree.xpath("//div[@id='whatsNewinthisVersionUpdateContainerId']//textarea/@name")[0]
+        whatsNewName    = editTree.xpath("//div[@id='whatsNewinthisVersionUpdateContainerId']//textarea/@name")
+
+        if len(whatsNewName) > 0: # there's no what's new section for first version
+            hasWhatsNew = True
+            whatsNewName = whatsNewName[0]
 
         keywordsName     = editTree.xpath("//div/label[.='Keywords']/..//input/@name")[0]
         supportURLName   = editTree.xpath("//div/label[.='Support URL']/..//input/@name")[0]
@@ -123,7 +227,10 @@ class ITCApplication(object):
 
         appNameValue     = editTree.xpath("//div[@id='appNameUpdateContainerId']//input/@value")[0]
         descriptionValue = editTree.xpath("//div[@id='descriptionUpdateContainerId']//textarea/text()")[0]
-        whatsNewValue    = editTree.xpath("//div[@id='whatsNewinthisVersionUpdateContainerId']//textarea/text()")[0]
+        whatsNewValue    = editTree.xpath("//div[@id='whatsNewinthisVersionUpdateContainerId']//textarea/text()")
+
+        if len(whatsNewValue) > 0 and hasWhatsNew:
+            whatsNewValue = whatsNewValue[0]
 
         keywordsValue     = editTree.xpath("//div/label[.='Keywords']/..//input/@value")[0]
         supportURLValue   = editTree.xpath("//div/label[.='Support URL']/..//input/@value")[0]
@@ -133,35 +240,73 @@ class ITCApplication(object):
         formData = {}
         formData[appNameName] = appNameValue
         formData[descriptionName] = descriptionValue
-        formData[whatsNewName] = whatsNewValue
+        if hasWhatsNew:
+            formData[whatsNewName] = whatsNewValue
+
         formData[keywordsName] = keywordsValue
         formData[supportURLName] = supportURLValue
         formData[marketingURLName] = marketingURLValue
         formData[pPolicyURLName] = pPolicyURLValue
         formData["save"] = "true"
 
-        if hasattr(dataDict,'name'):
+        if 'name' in dataDict:
             formData[descriptionName] = dataDict['name']
 
-        if hasattr(dataDict,'description'):
+        if 'description' in dataDict:
             formData[appNameName] = dataDict['description']
 
-        if hasattr(dataDict,'whats new'):
+        if hasWhatsNew and 'whats new' in dataDict:
             formData[whatsNewName] = dataDict['whats new']
 
-        if hasattr(dataDict,'keywords'):
+        if 'keywords' in dataDict:
             formData[keywordsName] = dataDict['keywords']
 
-        if hasattr(dataDict,'support url'):
+        if 'support url' in dataDict:
             formData[supportURLName] = dataDict['support url']
 
-        if hasattr(dataDict,'marketing url'):
+        if 'marketing url' in dataDict:
             formData[marketingURLName] = dataDict['marketing url']
 
-        if hasattr(dataDict,'privacy policy url'):
+        if 'privacy policy url' in dataDict:
             formData[pPolicyURLName] = dataDict['privacy policy url']
 
-        print formData
+        iphoneUploadScreenshotForm = editTree.xpath("//form[@name='FileUploadForm_35InchRetinaDisplayScreenshots']")[0]
+        iphone5UploadScreenshotForm = editTree.xpath("//form[@name='FileUploadForm_iPhone5']")[0]
+        ipadUploadScreenshotForm = editTree.xpath("//form[@name='FileUploadForm_iPadScreenshots']")[0]
+
+        iphoneUploadScreenshotJS = iphoneUploadScreenshotForm.xpath('../following-sibling::script/text()')[0]
+        iphone5UploadScreenshotJS = iphone5UploadScreenshotForm.xpath('../following-sibling::script/text()')[0]
+        ipadUploadScreenshotJS = ipadUploadScreenshotForm.xpath('../following-sibling::script/text()')[0]
+
+        self._uploadSessionData[UPLOAD_TYPE.iPhone] = dict({'action': iphoneUploadScreenshotForm.attrib['action']
+                                                        , 'key': iphoneUploadScreenshotForm.xpath(".//input[@name='uploadKey']/@value")[0]
+                                                      }, **self.__parseURLSFromScript(iphoneUploadScreenshotJS))
+        self._uploadSessionData[UPLOAD_TYPE.iPhone5] = dict({'action': iphone5UploadScreenshotForm.attrib['action']
+                                                         , 'key': iphone5UploadScreenshotForm.xpath(".//input[@name='uploadKey']/@value")[0]
+                                                       }, **self.__parseURLSFromScript(iphone5UploadScreenshotJS))
+        self._uploadSessionData[UPLOAD_TYPE.iPad] = dict({'action': ipadUploadScreenshotForm.attrib['action']
+                                                      , 'key': ipadUploadScreenshotForm.xpath(".//input[@name='uploadKey']/@value")[0]
+                                                    }, **self.__parseURLSFromScript(ipadUploadScreenshotJS))
+
+        self._uploadSessionId = iphoneUploadScreenshotForm.xpath('.//input[@name="uploadSessionID"]/@value')[0]
+
+        # get all images
+        for device_type in [UPLOAD_TYPE.iPhone, UPLOAD_TYPE.iPhone5, UPLOAD_TYPE.iPad]:
+            self._images[device_type] = self.__imagesForDevice(device_type)
+
+        print self._images
+
+        newList = [elem['id'] for elem in self._images[UPLOAD_TYPE.iPhone5]] 
+        newList[0], newList[1] = newList[1], newList[0]
+        self.__sortScreenshots(UPLOAD_TYPE.iPhone5, newList)
+
+        if False:
+            image_path = 'images/en/iphone 5 1.png'
+            self.__deleteScreenshot(UPLOAD_TYPE.iPhone5, self._images[UPLOAD_TYPE.iPhone5][1]['id'])
+            self.__uploadScreenshot(UPLOAD_TYPE.iPhone5, image_path)
+
+        formData['uploadSessionID'] = self._uploadSessionId
+        # formData['uploadKey'] = self._uploadSessionData[UPLOAD_TYPE.iPhone5]['key']
 
         postFormResponse = requests.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies = self._cookie_jar)
 

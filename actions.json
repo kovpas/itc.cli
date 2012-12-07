@@ -1,0 +1,46 @@
+{
+    "application id": 585307074,
+    "config": {
+        "images": {
+            "directory": "images",
+            "filename_format": "{device_type} {index}.png"
+        }
+    },
+    "commands": {
+        "name"               : "My test application - default",
+        "whats new"          : "test cli - default",
+        "keywords"           : "keyword 1, keyword 2, default",
+        "support url"        : "http://support_url_default.com",
+        "marketing url"      : "http://marketing_url_default.com",
+        "privacy policy url" : "http://support_url_default.com",
+
+        "images": {
+            "iphone": "d",
+            "iphone 5": {
+                "1": "u",
+                "2": "iphone-5__2.png",
+                "3": "d"
+            },
+            "ipad": "u"
+        },
+        "languages": {
+            "en": {
+                "images": {
+                    "iphone": "",
+                    "iphone 5": {
+                        "3": ""
+                    }
+                },
+                "whats new": "test cli - en"
+            },
+            "pt": {
+                "name"     : "My test application - pt",
+                "whats new": "test cli - pt"
+            },
+            "en-GB": {
+                "name"     : "My test application - pt",
+                "whats new": "test cli - pt"
+            }
+        }
+    }
+}

@@ -25,7 +25,7 @@ class ComplexEncoder(json.JSONEncoder):
 class ITCServer(object):
 
     def __init__(self, info, cookie_file, storage_file):
-        self.applications           = []
+        self.applications           = {}
 
         self._info                  = info
         self._cookie_file           = cookie_file
@@ -42,12 +42,12 @@ class ITCServer(object):
             except IOError:
                 pass
 
-        if self._storage_file and os.path.exists(self._storage_file ):
+        if self._storage_file and os.path.exists(self._storage_file):
             try:
                 fp = open(self._storage_file)
                 appsJSON = json.load(fp)
                 fp.close()
-                for appJSON in appsJSON:
+                for applicationId, appJSON in appsJSON:
                     application = ITCApplication(dict = appJSON, cookie_jar = self._cookie_jar)
                     self.applications.append(application)
             except ValueError:
@@ -62,7 +62,7 @@ class ITCServer(object):
             os.remove(self._cookie_file)
 
         if os.path.exists(self._storage_file ):
-            os.remove(self._storage_file )
+            os.remove(self._storage_file)
 
         self._cookie_jar = LWPCookieJar(self._cookie_file)
         
@@ -177,7 +177,7 @@ class ITCServer(object):
         applicationRows = appsTree.xpath("//div[@id='software-result-list']/div[@class='resultList']/table/tbody/tr[not(contains(@class, 'column-headers'))]")
 
         if len(applicationRows) > 0:
-            self.applications = []
+            self.applications = {}
 
         for applicationRow in applicationRows:
             tds = applicationRow.xpath("td")
@@ -186,7 +186,7 @@ class ITCServer(object):
             link = nameLink[0].attrib["href"]
             applicationId = int(tds[4].xpath(".//p")[0].text.strip())
             application = ITCApplication(name=name, applicationId=applicationId, link=link, cookie_jar = self._cookie_jar)
-            self.applications.append(application)
+            self.applications[applicationId] = application
 
         if (len(self.applications) > 0) and (len(applicationRows) > 0):
             if os.path.exists(self._storage_file ):

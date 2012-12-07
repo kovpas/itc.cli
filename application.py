@@ -117,8 +117,8 @@ class ITCApplication(object):
             logging.debug(status.content)
             result = []
 
-            for i in range(1, 5):
-                key = 'pictureFile_' + str(i)
+            for i in range(0, 5):
+                key = 'pictureFile_' + str(i + 1)
                 if key in statusJSON:
                     image = {}
                     pictureFile = statusJSON[key]
@@ -238,8 +238,6 @@ class ITCApplication(object):
         if editResponse.status_code != 200:
             raise 'Wrong response from iTunesConnect. Status code: ' + str(editResponse.status_code)
 
-        print editResponse.content
-
         editTree = parser.parse(editResponse.text)
         hasWhatsNew = False
 
@@ -336,14 +334,17 @@ class ITCApplication(object):
 
         if 'images' in dataDict:
             imagesActions = dataDict['images']
+            languageCode = languages.langCodeForLanguageNamed(lang)
 
             for dType in imagesActions:
+                print 
+                print 
                 device_type = None
-                if dType.lowercase() == 'iphone':
+                if dType.lower() == 'iphone':
                     device_type = DEVICE_TYPE.iPhone
-                elif dType.lowercase() == 'iphone 5':
+                elif dType.lower() == 'iphone 5':
                     device_type = DEVICE_TYPE.iPhone5
-                elif dType.lowercase() == 'ipad':
+                elif dType.lower() == 'ipad':
                     device_type = DEVICE_TYPE.iPad
                 else:
                     continue
@@ -353,8 +354,12 @@ class ITCApplication(object):
                     continue
 
                 for imageAction in deviceImagesActions:
+                    imageAction.setdefault('cmd')
+                    imageAction.setdefault('indexes')
                     cmd = imageAction['cmd']
                     indexes = imageAction['indexes']
+
+                    logging.debug('Processing command ' + imageAction.__str__())
 
                     if (cmd == 'd') or (cmd == 'r'): # delete or replace. To perform replace we need to delete images first
                         deleteIndexes = [img['id'] for img in self._images[device_type]]
@@ -362,31 +367,39 @@ class ITCApplication(object):
                             deleteIndexes = [deleteIndexes[idx - 1] for idx in indexes]
 
                         for imageIndexToDelete in deleteIndexes:
-                            self.__deleteScreenshot(DEVICE_TYPE.iPhone5, self._images[DEVICE_TYPE.iPhone5][1]['id'])
+                            img = next(im for im in self._images[DEVICE_TYPE.iPhone5] if im['id'] == imageIndexToDelete)
+                            self.__deleteScreenshot(DEVICE_TYPE.iPhone5, img['id'])
 
                         self._images[device_type] = self.__imagesForDevice(device_type)
                     
                     if (cmd == 'u') or (cmd == 'r'): # upload or replace
                         currentIndexes = [img['id'] for img in self._images[device_type]]
-                        imagePath = os.path.join(languages.langCodeForLanguageNamed(lang), DEVICE_TYPE.deviceStrings[device_type] + ' {index}.png')  
+                        imagePath = os.path.join('images', languageCode, DEVICE_TYPE.deviceStrings[device_type] + ' {index}.png')  
+                        logging.debug('Looking for images at ' + imagePath)
 
                         if indexes == None:
                             indexes = []
-                            for i in range(1, 5):
-                                realImagePath = imagePath.replace("{index}", str(i))
+                            for i in range(0, 5):
+                                realImagePath = imagePath.replace("{index}", str(i + 1))
                                 if os.path.exists(realImagePath):
-                                    indexes.append(i)
+                                    indexes.append(i + 1)
+
+                        if indexes == None:
+                            continue
 
                         indexes = sorted(indexes)
                         for i in indexes:
                             realImagePath = imagePath.replace("{index}", str(i))
                             if os.path.exists(realImagePath):
-                                self.__uploadScreenshot(DEVICE_TYPE.iPhone5, image_path)
+                                self.__uploadScreenshot(device_type, realImagePath)
 
                         self._images[device_type] = self.__imagesForDevice(device_type)
 
                         if cmd == 'r':
                             newIndexes = [img['id'] for img in self._images[device_type]][len(currentIndexes):]
+
+                            if len(newIndexes) == 0:
+                                continue
 
                             for i in indexes:
                                 currentIndexes.insert(i - 1, newIndexes.pop(0))
@@ -395,9 +408,9 @@ class ITCApplication(object):
                             self._images[device_type] = self.__imagesForDevice(device_type)
 
                     if (cmd == 's'): # sort
-                        if indexes == None:
+                        if indexes == None or len(indexes) != len(self._images[device_type]):
                             continue
-                        newIndexes = [self._images[device_type][i]['id'] for i in indexes]
+                        newIndexes = [self._images[device_type][i - 1]['id'] for i in indexes]
 
                         self.__sortScreenshots(device_type, newIndexes)
                         self._images[device_type] = self.__imagesForDevice(device_type)
@@ -411,13 +424,13 @@ class ITCApplication(object):
             self.__deleteScreenshot(DEVICE_TYPE.iPhone5, self._images[DEVICE_TYPE.iPhone5][1]['id'])
             self.__uploadScreenshot(DEVICE_TYPE.iPhone5, image_path)
 
-            formData['uploadSessionID'] = self._uploadSessionId
-            # formData['uploadKey'] = self._uploadSessionData[DEVICE_TYPE.iPhone5]['key']
+        formData['uploadSessionID'] = self._uploadSessionId
+        # formData['uploadKey'] = self._uploadSessionData[DEVICE_TYPE.iPhone5]['key']
 
-            postFormResponse = requests.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies = self._cookie_jar)
+        postFormResponse = requests.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies = self._cookie_jar)
 
-            if postFormResponse.status_code != 200:
-                raise 'Wrong response from iTunesConnect. Status code: ' + str(postFormResponse.status_code)
+        if postFormResponse.status_code != 200:
+            raise 'Wrong response from iTunesConnect. Status code: ' + str(postFormResponse.status_code)
 
-            if len(postFormResponse.text) > 0:
-                logger.error("Save information failed. " + postFormResponse.text)
+        if len(postFormResponse.text) > 0:
+            logging.error("Save information failed. " + postFormResponse.text)

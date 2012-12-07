@@ -116,7 +116,7 @@ def main():
 
     for lang in specificLangCommands:
         langActions[languages.languageNameForId(lang)] = dict_merge(commonActions, specificLangCommands[lang])
-        break
+        # break
 
     logging.debug(langActions)
 

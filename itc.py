@@ -8,41 +8,58 @@ import platform
 import sys
 import json
 import getpass
+import logging
 
 from server import ITCServer 
+from copy import deepcopy 
+import languages
 
 options = None
 config = {}
-languages_map = {}
-
-def debug(s):
-    if options and options.debug:
-        print ">>> %s" % s
 
 def parse_options(args):
     parser = argparse.ArgumentParser(description='Command line interface for iTunesConnect.')
-    parser.add_argument('--username', dest='username',
+    parser.add_argument('--username', '-u', dest='username',
                        help='iTunesConnect username')
-    parser.add_argument('--password', dest='password',
+    parser.add_argument('--password', '-p', dest='password',
                        help='iTunesConnect password')
-    parser.add_argument('--config_file', dest='config_file',
+    parser.add_argument('--config_file', '-c', dest='config_file', required=True,
                        help='Configuration file. For more details on format see https://github.com/kovpas/itc.cli')
     parser.add_argument('--debug', '-d', dest='debug', default=False, action='store_true',
-                       help='run script in debug mode')
+                       help='Debug output')
 
     args = parser.parse_args(args)
     globals()["options"] = args
 
+    if args.debug == True:
+        logging.basicConfig(level=logging.DEBUG)
+
     return args
 
+
+def dict_merge(a, b):
+    '''recursively merges dict's. not just simple a['key'] = b['key'], if
+    both a and b have a key who's value is a dict then dict_merge is called
+    on both values and the result stored in the returned dictionary.'''
+    if not isinstance(b, dict):
+        return b
+    result = deepcopy(a)
+    for k, v in b.iteritems():
+        if k in result and isinstance(result[k], dict):
+                result[k] = dict_merge(result[k], v)
+        else:
+            result[k] = deepcopy(v)
+    return result
 
 def parse_configuration_file():
     if options.config_file != None and os.path.exists(options.config_file):
         fp = open(options.config_file)
-        config = json.load(fp)
+        globals()['config'] = json.load(fp)
         fp.close()
+    else:
+        raise 'Can\'t read config file' 
 
-    return config
+    return globals()['config']
 
 
 def main():
@@ -65,12 +82,14 @@ def main():
 
     args = parse_options(sys.argv[1:])
     
-    debug('Python %s' % sys.version)
-    debug('Running on %s' % (platform.platform()))
-    debug('Home = %s' % homepath)
-    debug('Current Directory = %s' % os.getcwd())
+    logging.debug('Python %s' % sys.version)
+    logging.debug('Running on %s' % (platform.platform()))
+    logging.debug('Home = %s' % homepath)
+    logging.debug('Current Directory = %s' % os.getcwd())
 
-    debug('args %s' % args)
+    logging.debug('args %s' % args)
+
+    logging.debug(languages.langs())
 
     if options.username == None:
         options.username = raw_input('Username: ')
@@ -85,17 +104,27 @@ def main():
     if len(server.applications) == 0:
         server.getApplicationsList()
         
-    print server.applications
+    logging.debug(server.applications)
 
     cfg = parse_configuration_file()
     applicationId = cfg['application id']
     application = None
-    actions = cfg['commands']
+    commonActions = cfg['commands']
+    specificLangCommands = commonActions['languages']
+    commonActions['languages'] = None
+    langActions = {}
+
+    for lang in specificLangCommands:
+        langActions[languages.languageNameForId(lang)] = dict_merge(commonActions, specificLangCommands[lang])
+        break
+
+    logging.debug(langActions)
 
     if applicationId in server.applications:
         application = server.applications[applicationId]
-        application.editVersion(actions)
-        # languages = 
+        for lang in langActions:
+            actions = langActions[lang]
+            application.editVersion(actions, lang=lang)
 
 
 if __name__ == "__main__":

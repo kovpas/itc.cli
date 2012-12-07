@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import logging
 
 from cookielib import LWPCookieJar
 
@@ -9,7 +10,7 @@ from lxml import etree
 from lxml.html import tostring
 import html5lib
 
-from application import ITCApplication 
+from application import ITCApplication
 
 ITUNESCONNECT_URL = 'https://itunesconnect.apple.com'
 ITUNESCONNECT_MAIN_PAGE_URL = '/WebObjects/iTunesConnect.woa'
@@ -77,7 +78,7 @@ class ITCServer(object):
 
     def login(self):
         if self.isLoggedIn:
-            # print 'Login: already logged in'
+            logging.debug('Login: already logged in')
             return
         loginResponse = requests.get(ITUNESCONNECT_URL + self._loginPageURL, cookies=self._cookie_jar)
         if loginResponse.status_code == 200:
@@ -95,8 +96,8 @@ class ITCServer(object):
 
             self.isLoggedIn = self.__checkLogin(mainPageText=mainPage.text);
             if self.isLoggedIn:
-                # print "Login: logged in. Saving cookies to " + self._cookie_file
-                # print self._cookie_jar
+                logging.debug("Login: logged in. Saving cookies to " + self._cookie_file)
+                logging.debug(self._cookie_jar)
                 self._cookie_jar.save(self._cookie_file, ignore_discard=True)
             else:
                 raise 'Login failed. Please check username/password'
@@ -106,15 +107,15 @@ class ITCServer(object):
 
     def __checkLogin(self, mainPageText=None):
         if mainPageText == None:
-            # print 'Check login: requesting main page'
-            # print 'Check login: cookie jar: '
-            # print self._cookie_jar
+            logging.debug('Check login: requesting main page')
+            logging.debug('Check login: cookie jar: ')
+            logging.debug(self._cookie_jar)
             loginResponse = requests.get(ITUNESCONNECT_URL + self._loginPageURL, cookies=self._cookie_jar)
             if loginResponse.status_code == 200:
-                # print 'Check login: got main page'
+                logging.debug('Check login: got main page')
                 mainPageText = loginResponse.text
             else:
-                print 'Check login: not logged in!'
+                logging.debug('Check login: not logged in!')
                 self.__cleanup()
                 return False
 
@@ -124,11 +125,11 @@ class ITCServer(object):
         passwordInput = tree.xpath("//input[@name='theAccountPW']")
 
         if (len(usernameInput) == 1) and (len(passwordInput) == 1):
-            print 'Check login: not logged in!'
+            logging.debug('Check login: not logged in!')
             self.__cleanup()
             return False
 
-        print 'Check login: logged in!'
+        logging.debug('Check login: logged in!')
         self.__parseSessionURLs(tree)
         return True
 
@@ -145,8 +146,8 @@ class ITCServer(object):
         self._manageAppsURL = manageAppsLink[0].attrib['href']
         self._logoutURL = signOutLink[0].attrib['href']
 
-        print 'manage apps url: ' + self._manageAppsURL
-        print 'logout url: ' + self._logoutURL
+        logging.debug('manage apps url: ' + self._manageAppsURL)
+        logging.debug('logout url: ' + self._logoutURL)
 
 
     def getApplicationsList(self):

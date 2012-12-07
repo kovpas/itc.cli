@@ -1,9 +1,9 @@
 {
 	"en": "English",
-	"en-AU": "Australian English",
-	"pt": "Brazilian Portuguese",
-	"en-CA": "Canadian English",
-	"fr-CA": "Canadian French",
+	"en-AU": {"name": "Australian English", "id": "English_Australian"},
+	"pt": {"name": "Brazilian Portuguese", "id": "Brazilian Portuguese"},
+	"en-CA": {"name": "Canadian English", "id": "English_CA"},
+	"fr-CA": {"name": "Canadian French", "id": "French_CA"},
 	"da": "Danish",
 	"nl": "Dutch",
 	"fi": "Finnish",
@@ -14,7 +14,7 @@
 	"it": "Italian",
 	"ja": "Japanese",
 	"ko": "Korean",
-	"es-419": "Latin American Spanish",
+	"es-419": {"name": "Latin American Spanish", "id": "Spanish_MX"},
 	"ms": "Malay",
 	"no": "Norwegian",
 	"pt-PT": "Portuguese",
@@ -25,6 +25,6 @@
 	"th": "Thai",
 	"zh-Hant": "Traditional Chinese",
 	"tr": "Turkish",
-	"en-GB": "UK English",
+	"en-GB": {"name": "UK English", "id": "English_UK"},
 	"vi": "Vietnamese"
 }

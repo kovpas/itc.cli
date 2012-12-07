@@ -3,6 +3,8 @@ import sys
 import re
 import urllib2
 import json
+import logging
+import languages
 
 import requests
 from lxml import etree
@@ -11,10 +13,11 @@ import html5lib
 
 ITUNESCONNECT_URL = 'https://itunesconnect.apple.com'
 
-class UPLOAD_TYPE:
+class DEVICE_TYPE:
     iPad = 0
     iPhone = 1
     iPhone5 = 2
+    deviceStrings = ["iPad", "iPhone", "iPhone 5"]
 
 class EnhancedFile(file):
     def __init__(self, *args, **keyws):
@@ -23,10 +26,15 @@ class EnhancedFile(file):
     def __len__(self):
         return int(os.fstat(self.fileno())[6])
 
+def getElement(list, index):
+    try:
+        return list[index]
+    except Exception:
+        return ""
+
 class ITCApplication(object):
     def __init__(self, name=None, applicationId=None, link=None, dict=None, cookie_jar=None):
         if (dict):
-            print dict
             name = dict['name']
             link = dict['applicationLink']
             applicationId = dict['applicationId']
@@ -39,6 +47,8 @@ class ITCApplication(object):
         self._images = {}
 
         self._cookie_jar = cookie_jar
+
+        logging.info('Application found: ' + self.__str__())
 
 
     def __repr__(self):
@@ -104,6 +114,7 @@ class ITCApplication(object):
             status = requests.get(ITUNESCONNECT_URL + statusURL
                                   , cookies=self._cookie_jar)
             statusJSON = json.loads(status.content)
+            logging.debug(status.content)
             result = []
 
             for i in range(1, 5):
@@ -133,7 +144,7 @@ class ITCApplication(object):
                         , 'x-uploadSessionID' : self._uploadSessionId
                         , 'x-original-filename' : os.path.basename(file_path)
                         , 'Content-Type': 'image/png'}
-            print 'Uploading image ' + file_path
+            logging.info('Uploading image ' + file_path)
             r = requests.post(ITUNESCONNECT_URL + uploadScreenshotAction
                                 , cookies=self._cookie_jar
                                 , headers=headers
@@ -142,9 +153,9 @@ class ITCApplication(object):
             if r.content == 'success':
                 newImages = self.__imagesForDevice(upload_type)
                 if len(newImages) > len(self._images[upload_type]):
-                    print 'Image uploaded'
+                    logging.info('Image uploaded')
                 else:
-                    print 'Something\'s wrong...' 
+                    logging.error('Upload failed: ' + file_path)
 
 
     def __deleteScreenshot(self, type, screenshot_id):
@@ -169,7 +180,9 @@ class ITCApplication(object):
             r = requests.get(ITUNESCONNECT_URL + sortScreenshotsAction + "?sortedIDs=" + (",".join(newScreenshotsIndexes))
                     , cookies=self._cookie_jar)
 
-    def editVersion(self, dataDict, versionString=None):
+            # TODO: check status
+
+    def editVersion(self, dataDict, lang=None, versionString=None):
         if dataDict == None or len(dataDict) == 0: # nothing to change
             return
 
@@ -177,7 +190,7 @@ class ITCApplication(object):
             self.getVersions()
 
         if len(self.versions) == 0:
-            raise 'Can\'t get application\'s versions'
+            raise 'Can\'t get application versions'
 
         if versionString == None: # Suppose there's one or less editable versions
             versionString = next((versionString for versionString, version in self.versions.items() if version['editable']), None)
@@ -196,16 +209,36 @@ class ITCApplication(object):
 
         parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder("lxml"), namespaceHTMLElements=False)
         tree = parser.parse(appVersionResponse.text)
-        localizationLightboxAction = tree.xpath("//div[@id='localizationLightbox']/@action")[0]
+        localizationLightboxAction = tree.xpath("//div[@id='localizationLightbox']/@action")[0] # if no lang provided, edit default
+        localizationLightboxUpdateAction = tree.xpath("//span[@id='localizationLightboxUpdate']/@action")[0] 
 
-        print 'Enter edit mode for version ' + versionString
+        activatedLanguages    = tree.xpath('//div[@id="modules-dropdown"]/ul/li[count(preceding-sibling::li[@class="heading"])=1]/a/text()')
+        nonactivatedLanguages = tree.xpath('//div[@id="modules-dropdown"]/ul/li[count(preceding-sibling::li[@class="heading"])=2]/a/text()')
 
-        editResponse = requests.get(ITUNESCONNECT_URL + localizationLightboxAction + "?open=true", cookies = self._cookie_jar)
+        activatedLanguages = [lng.replace("(Default)", "").strip() for lng in activatedLanguages]
 
-        # versionDataContainer = tree.xpath("//span[@id='localizationLightboxUpdate']")
+        logging.info('Activated languages: ' + ', '.join(activatedLanguages))
+        logging.debug('Nonactivated languages: ' + ', '.join(nonactivatedLanguages))
+        
+        logging.info('Processing language: ' + lang)
+        editResponse = None
+        languageId = languages.appleLangIdForLanguageNamed(lang)
+        logging.debug('Apple language id: ' + languageId)
+
+        if lang in activatedLanguages:
+            logging.info('Edit version ' + versionString)
+            editResponse = requests.get(ITUNESCONNECT_URL + localizationLightboxAction + "?open=true" + ("&language=" + languageId if (languageId != None) else ""), cookies = self._cookie_jar)
+        elif lang in nonactivatedLanguages:
+            logging.info('Add ' + lang + ' for version ' + versionString)
+            editResponse = requests.get(ITUNESCONNECT_URL + localizationLightboxAction + "?open=true" + ("&language=" + languageId if (languageId != None) else ""), cookies = self._cookie_jar)
+
+        if editResponse == None:
+            raise 'Wrong language passed (' + lang + '). Please check languages.json for a list of language codes'
 
         if editResponse.status_code != 200:
             raise 'Wrong response from iTunesConnect. Status code: ' + str(editResponse.status_code)
+
+        print editResponse.content
 
         editTree = parser.parse(editResponse.text)
         hasWhatsNew = False
@@ -226,16 +259,16 @@ class ITCApplication(object):
         pPolicyURLName   = editTree.xpath("//div/label[contains(., 'Privacy Policy URL')]/..//input/@name")[0]
 
         appNameValue     = editTree.xpath("//div[@id='appNameUpdateContainerId']//input/@value")[0]
-        descriptionValue = editTree.xpath("//div[@id='descriptionUpdateContainerId']//textarea/text()")[0]
+        descriptionValue = getElement(editTree.xpath("//div[@id='descriptionUpdateContainerId']//textarea/text()"), 0)
         whatsNewValue    = editTree.xpath("//div[@id='whatsNewinthisVersionUpdateContainerId']//textarea/text()")
 
         if len(whatsNewValue) > 0 and hasWhatsNew:
-            whatsNewValue = whatsNewValue[0]
+            whatsNewValue = getElement(whatsNewValue, 0)
 
-        keywordsValue     = editTree.xpath("//div/label[.='Keywords']/..//input/@value")[0]
-        supportURLValue   = editTree.xpath("//div/label[.='Support URL']/..//input/@value")[0]
-        marketingURLValue = editTree.xpath("//div/label[contains(., 'Marketing URL')]/..//input/@value")[0]
-        pPolicyURLValue   = editTree.xpath("//div/label[contains(., 'Privacy Policy URL')]/..//input/@value")[0]
+        keywordsValue     = getElement(editTree.xpath("//div/label[.='Keywords']/..//input/@value"), 0)
+        supportURLValue   = getElement(editTree.xpath("//div/label[.='Support URL']/..//input/@value"), 0)
+        marketingURLValue = getElement(editTree.xpath("//div/label[contains(., 'Marketing URL')]/..//input/@value"), 0)
+        pPolicyURLValue   = getElement(editTree.xpath("//div/label[contains(., 'Privacy Policy URL')]/..//input/@value"), 0)
 
         formData = {}
         formData[appNameName] = appNameValue
@@ -247,6 +280,10 @@ class ITCApplication(object):
         formData[supportURLName] = supportURLValue
         formData[marketingURLName] = marketingURLValue
         formData[pPolicyURLName] = pPolicyURLValue
+
+        logging.debug("Old values:")
+        logging.debug(formData)
+
         formData["save"] = "true"
 
         if 'name' in dataDict:
@@ -278,40 +315,109 @@ class ITCApplication(object):
         iphone5UploadScreenshotJS = iphone5UploadScreenshotForm.xpath('../following-sibling::script/text()')[0]
         ipadUploadScreenshotJS = ipadUploadScreenshotForm.xpath('../following-sibling::script/text()')[0]
 
-        self._uploadSessionData[UPLOAD_TYPE.iPhone] = dict({'action': iphoneUploadScreenshotForm.attrib['action']
+        self._uploadSessionData[DEVICE_TYPE.iPhone] = dict({'action': iphoneUploadScreenshotForm.attrib['action']
                                                         , 'key': iphoneUploadScreenshotForm.xpath(".//input[@name='uploadKey']/@value")[0]
                                                       }, **self.__parseURLSFromScript(iphoneUploadScreenshotJS))
-        self._uploadSessionData[UPLOAD_TYPE.iPhone5] = dict({'action': iphone5UploadScreenshotForm.attrib['action']
+        self._uploadSessionData[DEVICE_TYPE.iPhone5] = dict({'action': iphone5UploadScreenshotForm.attrib['action']
                                                          , 'key': iphone5UploadScreenshotForm.xpath(".//input[@name='uploadKey']/@value")[0]
                                                        }, **self.__parseURLSFromScript(iphone5UploadScreenshotJS))
-        self._uploadSessionData[UPLOAD_TYPE.iPad] = dict({'action': ipadUploadScreenshotForm.attrib['action']
+        self._uploadSessionData[DEVICE_TYPE.iPad] = dict({'action': ipadUploadScreenshotForm.attrib['action']
                                                       , 'key': ipadUploadScreenshotForm.xpath(".//input[@name='uploadKey']/@value")[0]
                                                     }, **self.__parseURLSFromScript(ipadUploadScreenshotJS))
 
         self._uploadSessionId = iphoneUploadScreenshotForm.xpath('.//input[@name="uploadSessionID"]/@value')[0]
 
         # get all images
-        for device_type in [UPLOAD_TYPE.iPhone, UPLOAD_TYPE.iPhone5, UPLOAD_TYPE.iPad]:
+        for device_type in [DEVICE_TYPE.iPhone, DEVICE_TYPE.iPhone5, DEVICE_TYPE.iPad]:
             self._images[device_type] = self.__imagesForDevice(device_type)
 
-        print self._images
+        logging.debug(self._images)
+        logging.debug(formData)
 
-        newList = [elem['id'] for elem in self._images[UPLOAD_TYPE.iPhone5]] 
-        newList[0], newList[1] = newList[1], newList[0]
-        self.__sortScreenshots(UPLOAD_TYPE.iPhone5, newList)
+        if 'images' in dataDict:
+            imagesActions = dataDict['images']
+
+            for dType in imagesActions:
+                device_type = None
+                if dType.lowercase() == 'iphone':
+                    device_type = DEVICE_TYPE.iPhone
+                elif dType.lowercase() == 'iphone 5':
+                    device_type = DEVICE_TYPE.iPhone5
+                elif dType.lowercase() == 'ipad':
+                    device_type = DEVICE_TYPE.iPad
+                else:
+                    continue
+
+                deviceImagesActions = imagesActions[dType]
+                if deviceImagesActions == "":
+                    continue
+
+                for imageAction in deviceImagesActions:
+                    cmd = imageAction['cmd']
+                    indexes = imageAction['indexes']
+
+                    if (cmd == 'd') or (cmd == 'r'): # delete or replace. To perform replace we need to delete images first
+                        deleteIndexes = [img['id'] for img in self._images[device_type]]
+                        if indexes != None:
+                            deleteIndexes = [deleteIndexes[idx - 1] for idx in indexes]
+
+                        for imageIndexToDelete in deleteIndexes:
+                            self.__deleteScreenshot(DEVICE_TYPE.iPhone5, self._images[DEVICE_TYPE.iPhone5][1]['id'])
+
+                        self._images[device_type] = self.__imagesForDevice(device_type)
+                    
+                    if (cmd == 'u') or (cmd == 'r'): # upload or replace
+                        currentIndexes = [img['id'] for img in self._images[device_type]]
+                        imagePath = os.path.join(languages.langCodeForLanguageNamed(lang), DEVICE_TYPE.deviceStrings[device_type] + ' {index}.png')  
+
+                        if indexes == None:
+                            indexes = []
+                            for i in range(1, 5):
+                                realImagePath = imagePath.replace("{index}", str(i))
+                                if os.path.exists(realImagePath):
+                                    indexes.append(i)
+
+                        indexes = sorted(indexes)
+                        for i in indexes:
+                            realImagePath = imagePath.replace("{index}", str(i))
+                            if os.path.exists(realImagePath):
+                                self.__uploadScreenshot(DEVICE_TYPE.iPhone5, image_path)
+
+                        self._images[device_type] = self.__imagesForDevice(device_type)
+
+                        if cmd == 'r':
+                            newIndexes = [img['id'] for img in self._images[device_type]][len(currentIndexes):]
+
+                            for i in indexes:
+                                currentIndexes.insert(i - 1, newIndexes.pop(0))
+
+                            self.__sortScreenshots(device_type, currentIndexes)
+                            self._images[device_type] = self.__imagesForDevice(device_type)
+
+                    if (cmd == 's'): # sort
+                        if indexes == None:
+                            continue
+                        newIndexes = [self._images[device_type][i]['id'] for i in indexes]
+
+                        self.__sortScreenshots(device_type, newIndexes)
+                        self._images[device_type] = self.__imagesForDevice(device_type)
+
 
         if False:
+            newList = [elem['id'] for elem in self._images[DEVICE_TYPE.iPhone5]] 
+            newList[0], newList[1] = newList[1], newList[0]
+            self.__sortScreenshots(DEVICE_TYPE.iPhone5, newList)
             image_path = 'images/en/iphone 5 1.png'
-            self.__deleteScreenshot(UPLOAD_TYPE.iPhone5, self._images[UPLOAD_TYPE.iPhone5][1]['id'])
-            self.__uploadScreenshot(UPLOAD_TYPE.iPhone5, image_path)
+            self.__deleteScreenshot(DEVICE_TYPE.iPhone5, self._images[DEVICE_TYPE.iPhone5][1]['id'])
+            self.__uploadScreenshot(DEVICE_TYPE.iPhone5, image_path)
 
-        formData['uploadSessionID'] = self._uploadSessionId
-        # formData['uploadKey'] = self._uploadSessionData[UPLOAD_TYPE.iPhone5]['key']
+            formData['uploadSessionID'] = self._uploadSessionId
+            # formData['uploadKey'] = self._uploadSessionData[DEVICE_TYPE.iPhone5]['key']
 
-        postFormResponse = requests.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies = self._cookie_jar)
+            postFormResponse = requests.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies = self._cookie_jar)
 
-        if postFormResponse.status_code != 200:
-            raise 'Wrong response from iTunesConnect. Status code: ' + str(postFormResponse.status_code)
+            if postFormResponse.status_code != 200:
+                raise 'Wrong response from iTunesConnect. Status code: ' + str(postFormResponse.status_code)
 
-        if len(postFormResponse.text) > 0:
-            print "Error: " + postFormResponse.text
+            if len(postFormResponse.text) > 0:
+                logger.error("Save information failed. " + postFormResponse.text)

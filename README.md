@@ -176,4 +176,4 @@ In the example above, all iPad and pt/iPhone 5 screenshots will be uploaded by g
 Roadmap
 =======
 
-Two fetures are planned to be implemented: inapp purchases management and promo codes.
+Two features are planned to be implemented: inapp purchases management and promo codes.

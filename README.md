@@ -12,6 +12,10 @@ Script allows to add/edit metadata and uploads of the application through iTunes
 
 This is my first ever application written in python, so, please don't judge too strict ;)
 
+License
+=======
+itc.cli is available under the MIT license.
+
 Installation
 =======
 
@@ -27,11 +31,11 @@ Usage
 If all dependencies installed properly, you will see something like this:
 
 ````itc.cli.git kovpas$ ./itc.py --username apple_id````  
-> "Password:  
+> Password:  
 INFO:root:Login: logged in. Session cookies are saved to .itc-cli-cookies.txt  
 INFO:root:Application found: "App 1" (123456789)  
 INFO:root:Application found: "App 2" (987654321)  
-INFO:root:Nothing to do."
+INFO:root:Nothing to do.
 
 Every time you run the script, it uses cookies which are stored in the file ````.itc-cli-cookies.txt```` and checks if cookies are still valid or script needs to log in again. That means that once you've entered your password, you don't need it as long as session lives on iTunesConnect's servers. 
 
@@ -93,4 +97,83 @@ There are four commands for updating images:
 If ````indexes```` are provided, deletes images by selected indexes. Otherwise deletes all images
 
 ### Upload  
-Uploads images. If ````indexes```` are provided 
+Uploads images. If ````indexes```` are provided, only images with selected indexes will be uploaded
+
+### Sort  
+Sorts images. ````indexes```` are mandatory for this command
+
+### Replace  
+Replaces existing images with new ones. If ````indexes```` are not provided, deletes all images and uploads new ones
+
+### How to select images to upload  
+There's an option in ````config```` section:
+```` JSON
+{
+    "images": {
+        "filename_format": "images/{language}/{device_type} {index}.png"
+    }
+}
+````
+
+For example, in this case, the folder structure may look as follows:
+````
+itc.cli.git\
+    images\
+        en\
+            iphone 2.png
+            iphone 5 2.png
+            ipad 4.png
+        pt\
+            iphone 1.png
+            iphone 2.png
+            iphone 3.png
+            iphone 4.png
+            iphone 5.png <- 5th screenshot for 3.5" iPhone
+            iphone 5 1.png <- 1st screenshot for 4" iPhone
+            iphone 5 2.png
+            ipad 1.png
+            ipad 2.png
+            ipad 3.png
+            ipad 4.png
+````
+
+So, if you write the following command:
+
+````"ipad": [{"cmd": "u"}]````  
+One iPad screenshot will be uploaded for English language and four for Portugese. Please, note that you have to make sure that there are enough space for these screenshots.
+
+````"iphone": [{"cmd": "r"}]````  
+This command replaces second screenshot for English language and replaces all screenshots for Portugese.
+
+Of course for each language you can specify exact indexes of replaced/deleted and uploaded screenshots:
+```` JSON
+{
+  "general" : {
+      "images": {
+          "iphone"  : [{"cmd": "d", "indexes": [3]}],
+          "iphone 5": [{"cmd": "r"}],
+          "ipad"    : [{"cmd": "u"}]
+      }
+  },
+  "languages" : {
+      "en" : {
+          "images": {
+              "iphone"  : "", <- don't modify iPhone screenshots for English language
+              "iphone 5": [{"cmd": "u", "indexes": [2]}] <- instead of replacing all screenshots for iPhone 5, upload one with name 'iphone 5 2.png'
+          }
+      },
+      "pt" : {
+          "images": {
+              "iphone": [{"cmd": "s", "indexes": [1, 3, 5, 4, 2]}] <- apply new sorting
+          }
+      }
+  }
+}
+````
+
+In the example above, all iPad and pt/iPhone 5 screenshots will be uploaded by generic rule. The rest are specific for each language.
+
+Roadmap
+=======
+
+Two fetures are planned to be implemented: inapp purchases management and promo codes.

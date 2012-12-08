@@ -46,7 +46,7 @@ Party begins with ````--config_file```` parameter:
 Config file format
 =======
 
-Config file is a simple JSON file (please note, that it's a _strict_ JSON. You must avoid construcations like **,]** or **,}** (i.e. ````[1,2,]```` or ````{"a":"avalue", "b": "bvalue",}````). If your config file contains errors, you'll get an exception with the exact position of a wrong character)
+Config file is a simple JSON file (please note, that it's a _strict_ JSON. You must avoid constructions like **,]** or **,}** (i.e. ````[1,2,]```` or ````{"a":"avalue", "b": "bvalue",}````). If your config file contains errors, you'll get an exception with the exact position of a wrong character)
 
 Commands object has two fields - 'general' and 'languages'. Script merges each language's object with 'general' object. For example:
 

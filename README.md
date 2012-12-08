@@ -37,7 +37,7 @@ INFO:root:Application found: "App 1" (123456789)
 INFO:root:Application found: "App 2" (987654321)  
 INFO:root:Nothing to do.
 
-Every time you run the script, it uses cookies which are stored in the file ````.itc-cli-cookies.txt```` and checks if cookies are still valid or script needs to log in again. That means that once you've entered your password, you don't need it as long as session lives on iTunesConnect's servers. 
+Every time you run the script, it uses cookies which are stored in the file ````.itc-cli-cookies.txt```` and checks if cookies are still valid or script needs to log in again. That means that once you've entered your password, you don't need to enter it anymore as long as session is alive on iTunesConnect's servers. 
 
 Party begins with ````--config_file```` parameter:
 

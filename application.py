@@ -182,7 +182,7 @@ class ITCApplication(object):
 
             # TODO: check status
 
-    def editVersion(self, dataDict, lang=None, versionString=None):
+    def editVersion(self, dataDict, lang=None, versionString=None, filename_format=None):
         if dataDict == None or len(dataDict) == 0: # nothing to change
             return
 
@@ -359,6 +359,13 @@ class ITCApplication(object):
                     cmd = imageAction['cmd']
                     indexes = imageAction['indexes']
 
+                    if (indexes == None) and ((cmd == 'u') or (cmd == 'r')):
+                        indexes = []
+                        for i in range(0, 5):
+                            realImagePath = imagePath.replace("{index}", str(i + 1))
+                            if os.path.exists(realImagePath):
+                                indexes.append(i + 1)
+
                     logging.debug('Processing command ' + imageAction.__str__())
 
                     if (cmd == 'd') or (cmd == 'r'): # delete or replace. To perform replace we need to delete images first
@@ -374,15 +381,9 @@ class ITCApplication(object):
                     
                     if (cmd == 'u') or (cmd == 'r'): # upload or replace
                         currentIndexes = [img['id'] for img in self._images[device_type]]
-                        imagePath = os.path.join('images', languageCode, DEVICE_TYPE.deviceStrings[device_type] + ' {index}.png')  
+                        imagePath = filename_format.replace('{language}', languageCode) \
+                                                   .replace('{device_type}', DEVICE_TYPE.deviceStrings[device_type])
                         logging.debug('Looking for images at ' + imagePath)
-
-                        if indexes == None:
-                            indexes = []
-                            for i in range(0, 5):
-                                realImagePath = imagePath.replace("{index}", str(i + 1))
-                                if os.path.exists(realImagePath):
-                                    indexes.append(i + 1)
 
                         if indexes == None:
                             continue

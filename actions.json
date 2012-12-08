@@ -2,28 +2,27 @@
     "application id": 585307074,
     "config": {
         "images": {
-            "directory": "images",
-            "filename_format": "{language}/{device_type} {index}.png"
+            "filename_format": "images/{language}/{device_type} {index}.png"
         }
     },
     "commands": {
-        "name"               : "My test application - default",
-        "whats new"          : "test cli - default",
-        "keywords"           : "keyword 1, keyword 2, default",
-        "support url"        : "http://support_url_default.com",
-        "marketing url"      : "http://marketing_url_default.com",
-        "privacy policy url" : "http://support_url_default.com",
+        "general" :{
+            "name"               : "My test application - default",
+            "whats new"          : "test cli - default",
+            "keywords"           : "keyword 1, keyword 2, default",
+            "support url"        : "http://support_url_default.com",
+            "marketing url"      : "http://marketing_url_default.com",
+            "privacy policy url" : "http://support_url_default.com",
 
-        "images": {
-            "_iphone 5": [{"cmd": "d"}, {"cmd" :"u"}],
-            "iphone 5": [{"cmd": "s", "indexes": [5, 4, 3, 2, 1]}],
-            "_iphone": [{"cmd": "r", "indexes": [1, 2], "filenames": {"2": "iphone-5__2.png"}}
-                        ,{"cmd": "d", "indexes": [3]}],
-            "_ipad": [{"cmd": "u"}]
+            "images": {
+                "iphone": [{"cmd": "d", "indexes": [3]}],
+                "iphone 5": [{"cmd": "r"}],
+                "ipad": [{"cmd": "u"}]
+            }
         },
         "languages": {
             "en": {
-                "_images": {
+                "images": {
                     "iphone": "",
                     "iphone 5": [{"cmd": "u", "indexes": [4]}]
                 },
@@ -32,7 +31,7 @@
             "pt": {
                 "name"     : "My test application - pt",
                 "whats new": "test cli - pt",
-                "_images": {
+                "images": {
                     "iphone": [{"cmd": "s", "indexes": [1, 3, 5, 4, 2]}]
                 }
             },

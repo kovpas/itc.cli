@@ -96,7 +96,7 @@ class ITCServer(object):
 
             self.isLoggedIn = self.__checkLogin(mainPageText=mainPage.text);
             if self.isLoggedIn:
-                logging.debug("Login: logged in. Saving cookies to " + self._cookie_file)
+                logging.info("Login: logged in. Session cookies are saved to " + self._cookie_file)
                 logging.debug(self._cookie_jar)
                 self._cookie_jar.save(self._cookie_file, ignore_discard=True)
             else:

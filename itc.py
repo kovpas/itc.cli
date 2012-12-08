@@ -23,7 +23,7 @@ def parse_options(args):
                        help='iTunesConnect username')
     parser.add_argument('--password', '-p', dest='password',
                        help='iTunesConnect password')
-    parser.add_argument('--config_file', '-c', dest='config_file', required=True,
+    parser.add_argument('--config_file', '-c', dest='config_file',
                        help='Configuration file. For more details on format see https://github.com/kovpas/itc.cli')
     parser.add_argument('--debug', '-d', dest='debug', default=False, action='store_true',
                        help='Debug output')
@@ -33,6 +33,11 @@ def parse_options(args):
 
     if args.debug == True:
         logging.basicConfig(level=logging.DEBUG)
+    else:
+        requests_log = logging.getLogger("requests")
+        requests_log.setLevel(logging.WARNING)
+        
+        logging.basicConfig(level=logging.INFO)
 
     return args
 
@@ -56,35 +61,23 @@ def parse_configuration_file():
         fp = open(options.config_file)
         globals()['config'] = json.load(fp)
         fp.close()
-    else:
-        raise 'Can\'t read config file' 
 
     return globals()['config']
 
 
 def main():
-    origcwd = os.path.abspath(os.getcwd())
-
-    if 'APPDATA' in os.environ:
-        homepath = os.environ['APPDATA']
-    elif 'HOME' in os.environ:
-        homepath = os.environ["HOME"]
-    else:
-        homepath = ''
-
-    # If we end up creating a cookie file, make sure it's only readable by the
-    # user.
     os.umask(0077)
+    scriptDir = os.path.dirname(os.path.realpath(__file__))
 
     # Load the config and cookie files
-    cookie_file = os.path.join(homepath, ".itc-cli-cookies.txt")
-    storage_file = os.path.join(homepath, ".itc-cli-storage.txt")
+    cookie_file = os.path.join(scriptDir, ".itc-cli-cookies.txt")
+    storage_file = os.path.join(scriptDir, ".itc-cli-storage.txt")
 
     args = parse_options(sys.argv[1:])
     
     logging.debug('Python %s' % sys.version)
     logging.debug('Running on %s' % (platform.platform()))
-    logging.debug('Home = %s' % homepath)
+    logging.debug('Script path = %s' % scriptDir)
     logging.debug('Current Directory = %s' % os.getcwd())
 
     logging.debug('args %s' % args)
@@ -107,16 +100,20 @@ def main():
     logging.debug(server.applications)
 
     cfg = parse_configuration_file()
+    if len(cfg) == 0:
+        logging.info('Nothing to do.')
+        return
+
     applicationId = cfg['application id']
     application = None
-    commonActions = cfg['commands']
-    specificLangCommands = commonActions['languages']
-    commonActions['languages'] = None
+    commonActions = cfg['commands']['general']
+    specificLangCommands = cfg['commands']['languages']
     langActions = {}
+    filename_format = cfg['config']['images']['filename_format']
+    # filename_format = os.path.join('images', languageCode, DEVICE_TYPE.deviceStrings[device_type] + ' {index}.png')  
 
     for lang in specificLangCommands:
         langActions[languages.languageNameForId(lang)] = dict_merge(commonActions, specificLangCommands[lang])
-        # break
 
     logging.debug(langActions)
 
@@ -124,7 +121,7 @@ def main():
         application = server.applications[applicationId]
         for lang in langActions:
             actions = langActions[lang]
-            application.editVersion(actions, lang=lang)
+            application.editVersion(actions, lang=lang, filename_format=filename_format)
 
 
 if __name__ == "__main__":

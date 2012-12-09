@@ -412,8 +412,6 @@ class ITCApplication(object):
             languageCode = languages.langCodeForLanguageNamed(lang)
 
             for dType in imagesActions:
-                print 
-                print 
                 device_type = None
                 if dType.lower() == 'iphone':
                     device_type = DEVICE_TYPE.iPhone

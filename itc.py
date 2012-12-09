@@ -29,14 +29,17 @@ def parse_options(args):
     group = parser.add_mutually_exclusive_group()
 
     group.add_argument('--generate-config', '-g', dest='generate_config', default=False, action='store_true',
-                       help='Generate initial configuration file based on current applications\' state. If no --application-id provided, configuration files for all applications will be created.')
+                       help='Generate initial configuration file based on current applications\' state. \
+                       If no --application-id provided, configuration files for all applications will be created.')
     group.add_argument('--config-file', '-c', dest='config_file', type=file,
                        help='Configuration file. For more details on format see https://github.com/kovpas/itc.cli')
 
     parser.add_argument('--application-version', '-e', dest='application_version', metavar="VERSION", default=None,
-                       help='Application version to generate config. In not provided, config will be generated for latest version')
+                       help='Application version to generate config. \
+                       If not provided, config will be generated for latest version')
     parser.add_argument('--application-id', '-a', dest='application_id', type=int,
-                       help='Application id to process. If --config-file provided and it contains "application id", this property is be ignored')
+                       help='Application id to process. If --config-file provided and it contains "application id", \
+                       this property is be ignored')
 
 
     args = parser.parse_args(args)
@@ -129,12 +132,15 @@ def main():
         logging.info('Nothing to do.')
         return
 
-    applicationId = cfg.get('application id', options.application_id)
+    applicationDict = cfg['application']
+    applicationId = applicationDict.get('id', options.application_id)
     application = None
-    commonActions = cfg['commands'].get('general', {})
-    specificLangCommands = cfg['commands']['languages']
+    commonActions = applicationDict['metadata'].get('general', {})
+    specificLangCommands = applicationDict['metadata']['languages']
     langActions = {}
-    filename_format = cfg.get('config', {}).get('images', {}).get('filename_format', 'images/{language}/{device_type} {index}.png')
+    filename_format = cfg.get('config', {}) \
+                           .get('images', {}) \
+                              .get('filename format', 'images/{language}/{device_type} {index}.png')
 
     for lang in specificLangCommands:
         langActions[languages.languageNameForId(lang)] = dict_merge(commonActions, specificLangCommands[lang])
@@ -143,9 +149,11 @@ def main():
 
     if applicationId in server.applications:
         application = server.applications[applicationId]
+        application.createInapp(applicationDict['inapps'][0])
+        return
         for lang in langActions:
             actions = langActions[lang]
-            application.editVersion(actions, lang=lang, filename_format=filename_format)
+            #application.editVersion(actions, lang=lang, filename_format=filename_format)
 
 
 if __name__ == "__main__":

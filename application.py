@@ -11,6 +11,7 @@ import requests
 from lxml import etree
 from lxml.html import tostring
 import html5lib
+from inapp import ITCInappPurchase 
 
 ITUNESCONNECT_URL = 'https://itunesconnect.apple.com'
 
@@ -44,8 +45,13 @@ class ITCApplication(object):
         self.applicationLink = link
         self.applicationId = applicationId
         self.versions = {}
+        self.inapps = {}
+
         self._uploadSessionData = {}
         self._images = {}
+        self._manageInappsLink = None
+        self._createInappLink = None
+        self._inappActionURLs = None
 
         self._cookie_jar = cookie_jar
 
@@ -68,7 +74,7 @@ class ITCApplication(object):
         return strng
 
 
-    def getVersions(self):
+    def getAppInfo(self):
         if self.applicationLink == None:
             raise 'Can\'t get application versions'
 
@@ -79,6 +85,11 @@ class ITCApplication(object):
 
         parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder("lxml"), namespaceHTMLElements=False)
         tree = parser.parse(appVersionsResponse.text)
+
+        # get 'manage in-app purchases' link
+        self._manageInappsLink = tree.xpath("//ul[@id='availableButtons']/li/a/span[starts-with(@class, 'in-app')]/../@href")[0]
+        logging.debug("Manage In-App purchases link: " + self._manageInappsLink)
+
         versionsContainer = tree.xpath("//h2[.='Versions']/following-sibling::div")
         if len(versionsContainer) == 0:
             return
@@ -95,6 +106,9 @@ class ITCApplication(object):
             version['statusString'] = ("".join([str(x) for x in versionDiv.xpath(".//span/img[starts-with(@src, '/itc/images/status-')]/../text()")])).strip()
             version['editable'] = (version['statusString'] != 'Ready for Sale')
             version['versionString'] = versionString
+
+            logging.info("Version found: " + versionString)
+            logging.debug(version)
 
             self.versions[versionString] = version
 
@@ -178,8 +192,9 @@ class ITCApplication(object):
         sortScreenshotsAction = self._uploadSessionData[type]['sortURL']
 
         if sortScreenshotsAction != None:
-            r = requests.get(ITUNESCONNECT_URL + sortScreenshotsAction + "?sortedIDs=" + (",".join(newScreenshotsIndexes))
-                    , cookies=self._cookie_jar)
+            r = requests.get(ITUNESCONNECT_URL + sortScreenshotsAction 
+                                    + "?sortedIDs=" + (",".join(newScreenshotsIndexes))
+                            , cookies=self._cookie_jar)
 
             # TODO: check status
 
@@ -189,15 +204,18 @@ class ITCApplication(object):
         if appVersionResponse.status_code != 200:
             raise 'Wrong response from iTunesConnect. Status code: ' + str(appVersionResponse.status_code)
 
-        AppMetadata = namedtuple('AppMetadata', ['activatedLanguages', 'nonactivatedLanguages', 'formData', 'formNames', 'submitActions'])
+        AppMetadata = namedtuple('AppMetadata', ['activatedLanguages', 'nonactivatedLanguages'
+                                                , 'formData', 'formNames', 'submitActions'])
 
         parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder("lxml"), namespaceHTMLElements=False)
         tree = parser.parse(appVersionResponse.text)
         localizationLightboxAction = tree.xpath("//div[@id='localizationLightbox']/@action")[0] # if no lang provided, edit default
         localizationLightboxUpdateAction = tree.xpath("//span[@id='localizationLightboxUpdate']/@action")[0] 
 
-        activatedLanguages    = tree.xpath('//div[@id="modules-dropdown"]/ul/li[count(preceding-sibling::li[@class="heading"])=1]/a/text()')
-        nonactivatedLanguages = tree.xpath('//div[@id="modules-dropdown"]/ul/li[count(preceding-sibling::li[@class="heading"])=2]/a/text()')
+        activatedLanguages    = tree.xpath('//div[@id="modules-dropdown"] \
+                                    /ul/li[count(preceding-sibling::li[@class="heading"])=1]/a/text()')
+        nonactivatedLanguages = tree.xpath('//div[@id="modules-dropdown"] \
+                                    /ul/li[count(preceding-sibling::li[@class="heading"])=2]/a/text()')
         
         activatedLanguages = [lng.replace("(Default)", "").strip() for lng in activatedLanguages]
 
@@ -225,7 +243,9 @@ class ITCApplication(object):
             elif lang in nonactivatedLanguages:
                 logging.info('Add ' + lang + ' for version ' + versionString)
 
-            editResponse = requests.get(ITUNESCONNECT_URL + localizationLightboxAction + "?open=true" + ("&language=" + languageId if (languageId != None) else ""), cookies = self._cookie_jar)
+            editResponse = requests.get(ITUNESCONNECT_URL + localizationLightboxAction + "?open=true" 
+                                               + ("&language=" + languageId if (languageId != None) else "")
+                                       , cookies = self._cookie_jar)
 
             if editResponse == None:
                 raise 'Wrong language passed (' + lang + '). Please check languages.json for a list of language codes'
@@ -310,14 +330,14 @@ class ITCApplication(object):
 
             languagesDict[langCode] = resultForLang
 
-        resultDict = {'application id': self.applicationId, 'config':{}, 'commands': {'general': {}, 'languages': languagesDict}}
+        resultDict = {'config':{}, 'application': {'id': self.applicationId, 'metadata': {'general': {}, 'languages': languagesDict}}}
         with open(filename, 'wb') as fp:
             json.dump(resultDict, fp, sort_keys=True, indent=4, separators=(',', ': '))
 
 
     def generateConfig(self, versionString=None):
         if len(self.versions) == 0:
-            self.getVersions()
+            self.getAppInfo()
         if len(self.versions) == 0:
             raise 'Can\'t get application versions'
         if versionString == None: # Suppose there's one or less editable versions
@@ -333,14 +353,11 @@ class ITCApplication(object):
             return
 
         if len(self.versions) == 0:
-            self.getVersions()
-
+            self.getAppInfo()
         if len(self.versions) == 0:
             raise 'Can\'t get application versions'
-
         if versionString == None: # Suppose there's one or less editable versions
             versionString = next((versionString for versionString, version in self.versions.items() if version['editable']), None)
-
         if versionString == None: # Suppose there's one or less editable versions
             raise 'No editable version found'
             
@@ -490,15 +507,6 @@ class ITCApplication(object):
                         self.__sortScreenshots(device_type, newIndexes)
                         self._images[device_type] = self.__imagesForDevice(device_type)
 
-
-        if False:
-            newList = [elem['id'] for elem in self._images[DEVICE_TYPE.iPhone5]] 
-            newList[0], newList[1] = newList[1], newList[0]
-            self.__sortScreenshots(DEVICE_TYPE.iPhone5, newList)
-            image_path = 'images/en/iphone 5 1.png'
-            self.__deleteScreenshot(DEVICE_TYPE.iPhone5, self._images[DEVICE_TYPE.iPhone5][1]['id'])
-            self.__uploadScreenshot(DEVICE_TYPE.iPhone5, image_path)
-
         formData['uploadSessionID'] = self._uploadSessionId
         # formData['uploadKey'] = self._uploadSessionData[DEVICE_TYPE.iPhone5]['key']
 
@@ -509,3 +517,65 @@ class ITCApplication(object):
 
         if len(postFormResponse.text) > 0:
             logging.error("Save information failed. " + postFormResponse.text)
+
+
+    def __parseInappActionURLsFromScript(self, script):
+        matches = re.findall('\'([^\']+)\'\s:\s\'([^\']+)\'', script)
+        self._inappActionURLs = dict((k, v) for k, v in matches if k.endswith('Url'))
+        return self._inappActionURLs
+
+
+    def getInapps(self):
+        if self._manageInappsLink == None:
+            self.getAppInfo()
+        if self._manageInappsLink == None:
+            raise 'Can\'t get "Manage In-App purchases link :(("'
+
+        manageInappsResponse = requests.get(ITUNESCONNECT_URL + self._manageInappsLink, cookies = self._cookie_jar)
+
+        if manageInappsResponse.status_code != 200:
+            raise 'Wrong response from iTunesConnect. Status code: ' + str(manageInappsResponse.status_code)
+
+        parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder("lxml"), namespaceHTMLElements=False)
+        tree = parser.parse(manageInappsResponse.text)
+
+        self._createInappLink = tree.xpath('//img[contains(@src, "btn-create-new-in-app-purchase.png")]/../@href')[0]
+        inappULs = tree.xpath('//span[@id="ajaxListListRefreshContainerId"]/ul/li[starts-with(@id, "ajaxListRow_")]')
+
+        if len(inappULs) == 0:
+            logging.info('No In-App Purchases found')
+            return
+
+        inappsActionScript = tree.xpath('//script[contains(., "var arguments")]/text()')[0]
+        actionURLs = self.__parseInappActionURLsFromScript(inappsActionScript)
+        inappsItemAction = actionURLs['itemActionUrl']
+
+        for inappUL in inappULs:
+            numericId = inappUL.xpath('./div[starts-with(@class,"ajaxListRowDiv")]/@itemid')[0]
+            name = inappUL.xpath('./div/div/span/text()')[0].strip()
+            productId = inappUL.xpath('./div/div[3]/text()')[0].strip()
+            iaptype = inappUL.xpath('./div/div[4]/text()')[0].strip()
+            manageLink = inappsItemAction + "?itemID=" + numericId
+            self.inapps[numericId] = ITCInappPurchase(name=name, numericId=numericId, productId=productId, iaptype=iaptype, manageLink=manageLink, cookie_jar=self._cookie_jar)
+
+
+    def createInapp(self, inappDict):
+        if self._createInappLink == None:
+            self.getInapps()
+        if self._createInappLink == None:
+            raise 'Can\'t create inapp purchase'
+
+        if ITCInappPurchase.createInappLink == None:
+            ITCInappPurchase.createInappLink = self._createInappLink
+
+        iap = ITCInappPurchase(name=inappDict['reference name']
+                             , productId=inappDict['id']
+                             , iaptype=inappDict['type']
+                             , cookie_jar=self._cookie_jar)
+        iap.clearedForSale = inappDict['cleared']
+        iap.priceTier = int(inappDict['price tier']) - 1
+        iap.hostingContentWithApple = inappDict['hosting content with apple']
+        iap.reviewNotes = inappDict['review notes']
+
+        iap.create(inappDict['languages'])
+

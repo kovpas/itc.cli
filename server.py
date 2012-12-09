@@ -82,7 +82,8 @@ class ITCServer(object):
             return
         loginResponse = requests.get(ITUNESCONNECT_URL + self._loginPageURL, cookies=self._cookie_jar)
         if loginResponse.status_code == 200:
-            parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder("lxml"), namespaceHTMLElements=False)
+            parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder("lxml")
+                                        , namespaceHTMLElements=False)
             tree = parser.parse(loginResponse.text)
             forms = tree.xpath("//form")
 
@@ -110,7 +111,8 @@ class ITCServer(object):
             logging.debug('Check login: requesting main page')
             logging.debug('Check login: cookie jar: ')
             logging.debug(self._cookie_jar)
-            loginResponse = requests.get(ITUNESCONNECT_URL + self._loginPageURL, cookies=self._cookie_jar)
+            loginResponse = requests.get(ITUNESCONNECT_URL + self._loginPageURL
+                                        , cookies=self._cookie_jar)
             if loginResponse.status_code == 200:
                 logging.debug('Check login: got main page')
                 mainPageText = loginResponse.text
@@ -119,7 +121,8 @@ class ITCServer(object):
                 self.__cleanup()
                 return False
 
-        parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder("lxml"), namespaceHTMLElements=False)
+        parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder("lxml")
+                                    , namespaceHTMLElements=False)
         tree = parser.parse(mainPageText)
         usernameInput = tree.xpath("//input[@name='theAccountName']")
         passwordInput = tree.xpath("//input[@name='theAccountPW']")
@@ -155,11 +158,13 @@ class ITCServer(object):
             raise 'Get applications list: not logged in'
 
         if not self._getApplicationListURL:
-            manageAppsResponse = requests.get(ITUNESCONNECT_URL + self._manageAppsURL, cookies=self._cookie_jar)
+            manageAppsResponse = requests.get(ITUNESCONNECT_URL + self._manageAppsURL
+                                             , cookies=self._cookie_jar)
             if manageAppsResponse.status_code != 200:
                 raise
 
-            parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder("lxml"), namespaceHTMLElements=False)
+            parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder("lxml")
+                                        , namespaceHTMLElements=False)
             tree = parser.parse(manageAppsResponse.text)
             seeAllDiv = tree.xpath("//div[@class='seeAll']")[0]
             seeAllLink = seeAllDiv.xpath(".//a[starts-with(., 'See All')]")
@@ -169,13 +174,15 @@ class ITCServer(object):
 
             self._getApplicationListURL = seeAllLink[0].attrib['href']
 
-        appsListResponse = requests.get(ITUNESCONNECT_URL + self._getApplicationListURL, cookies=self._cookie_jar)
+        appsListResponse = requests.get(ITUNESCONNECT_URL + self._getApplicationListURL
+                                        , cookies=self._cookie_jar)
 
         if appsListResponse.status_code != 200:
             raise
 
         appsTree = parser.parse(appsListResponse.text)
-        applicationRows = appsTree.xpath("//div[@id='software-result-list']/div[@class='resultList']/table/tbody/tr[not(contains(@class, 'column-headers'))]")
+        applicationRows = appsTree.xpath("//div[@id='software-result-list'] \
+                            /div[@class='resultList']/table/tbody/tr[not(contains(@class, 'column-headers'))]")
 
         if len(applicationRows) > 0:
             self.applications = {}
@@ -186,7 +193,8 @@ class ITCServer(object):
             name = nameLink[0].text.strip()
             link = nameLink[0].attrib["href"]
             applicationId = int(tds[4].xpath(".//p")[0].text.strip())
-            application = ITCApplication(name=name, applicationId=applicationId, link=link, cookie_jar = self._cookie_jar)
+            application = ITCApplication(name=name, applicationId=applicationId
+                                         , link=link, cookie_jar = self._cookie_jar)
             self.applications[applicationId] = application
 
         if (len(self.applications) > 0) and (len(applicationRows) > 0):

@@ -5,6 +5,7 @@ import urllib2
 import json
 import logging
 import languages
+from collections import namedtuple
 
 import requests
 from lxml import etree
@@ -182,6 +183,151 @@ class ITCApplication(object):
 
             # TODO: check status
 
+    def __parseAppVersionMetadata(self, version, language=None):
+        appVersionResponse = requests.get(ITUNESCONNECT_URL + version['detailsLink'], cookies = self._cookie_jar)
+
+        if appVersionResponse.status_code != 200:
+            raise 'Wrong response from iTunesConnect. Status code: ' + str(appVersionResponse.status_code)
+
+        AppMetadata = namedtuple('AppMetadata', ['activatedLanguages', 'nonactivatedLanguages', 'formData', 'formNames', 'submitActions'])
+
+        parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder("lxml"), namespaceHTMLElements=False)
+        tree = parser.parse(appVersionResponse.text)
+        localizationLightboxAction = tree.xpath("//div[@id='localizationLightbox']/@action")[0] # if no lang provided, edit default
+        localizationLightboxUpdateAction = tree.xpath("//span[@id='localizationLightboxUpdate']/@action")[0] 
+
+        activatedLanguages    = tree.xpath('//div[@id="modules-dropdown"]/ul/li[count(preceding-sibling::li[@class="heading"])=1]/a/text()')
+        nonactivatedLanguages = tree.xpath('//div[@id="modules-dropdown"]/ul/li[count(preceding-sibling::li[@class="heading"])=2]/a/text()')
+        
+        activatedLanguages = [lng.replace("(Default)", "").strip() for lng in activatedLanguages]
+
+        logging.info('Activated languages: ' + ', '.join(activatedLanguages))
+        logging.debug('Nonactivated languages: ' + ', '.join(nonactivatedLanguages))
+
+        langs = activatedLanguages
+
+        if language != None:
+            langs = [language]
+
+        formData = {}
+        formNames = {}
+        submitActions = {}
+        versionString = version['versionString']
+
+        for lang in langs:
+            logging.info('Processing language: ' + lang)
+            editResponse = None
+            languageId = languages.appleLangIdForLanguageNamed(lang)
+            logging.debug('Apple language id: ' + languageId)
+
+            if lang in activatedLanguages:
+                logging.info('Getting metadata for ' + lang + '. Version: ' + versionString)
+            elif lang in nonactivatedLanguages:
+                logging.info('Add ' + lang + ' for version ' + versionString)
+
+            editResponse = requests.get(ITUNESCONNECT_URL + localizationLightboxAction + "?open=true" + ("&language=" + languageId if (languageId != None) else ""), cookies = self._cookie_jar)
+
+            if editResponse == None:
+                raise 'Wrong language passed (' + lang + '). Please check languages.json for a list of language codes'
+
+            if editResponse.status_code != 200:
+                raise 'Wrong response from iTunesConnect. Status code: ' + str(editResponse.status_code)
+
+            editTree = parser.parse(editResponse.text)
+            hasWhatsNew = False
+
+            formDataForLang = {}
+            formNamesForLang = {}
+
+            submitActionForLang = editTree.xpath("//div[@class='lcAjaxLightboxContentsWrapper']/div[@class='lcAjaxLightboxContents']/@action")[0]
+
+            formNamesForLang['appNameName'] = editTree.xpath("//div[@id='appNameUpdateContainerId']//input/@name")[0]
+            formNamesForLang['descriptionName'] = editTree.xpath("//div[@id='descriptionUpdateContainerId']//textarea/@name")[0]
+            whatsNewName = editTree.xpath("//div[@id='whatsNewinthisVersionUpdateContainerId']//textarea/@name")
+
+            if len(whatsNewName) > 0: # there's no what's new section for first version
+                hasWhatsNew = True
+                formNamesForLang['whatsNewName'] = whatsNewName[0]
+
+            formNamesForLang['keywordsName']     = editTree.xpath("//div/label[.='Keywords']/..//input/@name")[0]
+            formNamesForLang['supportURLName']   = editTree.xpath("//div/label[.='Support URL']/..//input/@name")[0]
+            formNamesForLang['marketingURLName'] = editTree.xpath("//div/label[contains(., 'Marketing URL')]/..//input/@name")[0]
+            formNamesForLang['pPolicyURLName']   = editTree.xpath("//div/label[contains(., 'Privacy Policy URL')]/..//input/@name")[0]
+
+            formDataForLang['appNameValue']     = editTree.xpath("//div[@id='appNameUpdateContainerId']//input/@value")[0]
+            formDataForLang['descriptionValue'] = getElement(editTree.xpath("//div[@id='descriptionUpdateContainerId']//textarea/text()"), 0)
+            whatsNewValue    = editTree.xpath("//div[@id='whatsNewinthisVersionUpdateContainerId']//textarea/text()")
+
+            if len(whatsNewValue) > 0 and hasWhatsNew:
+                formDataForLang['whatsNewValue'] = getElement(whatsNewValue, 0)
+
+            formDataForLang['keywordsValue']     = getElement(editTree.xpath("//div/label[.='Keywords']/..//input/@value"), 0)
+            formDataForLang['supportURLValue']   = getElement(editTree.xpath("//div/label[.='Support URL']/..//input/@value"), 0)
+            formDataForLang['marketingURLValue'] = getElement(editTree.xpath("//div/label[contains(., 'Marketing URL')]/..//input/@value"), 0)
+            formDataForLang['pPolicyURLValue']   = getElement(editTree.xpath("//div/label[contains(., 'Privacy Policy URL')]/..//input/@value"), 0)
+
+            logging.debug("Old values:")
+            logging.debug(formDataForLang)
+
+            iphoneUploadScreenshotForm = editTree.xpath("//form[@name='FileUploadForm_35InchRetinaDisplayScreenshots']")[0]
+            iphone5UploadScreenshotForm = editTree.xpath("//form[@name='FileUploadForm_iPhone5']")[0]
+            ipadUploadScreenshotForm = editTree.xpath("//form[@name='FileUploadForm_iPadScreenshots']")[0]
+
+            formNamesForLang['iphoneUploadScreenshotForm'] = iphoneUploadScreenshotForm
+            formNamesForLang['iphone5UploadScreenshotForm'] = iphone5UploadScreenshotForm
+            formNamesForLang['ipadUploadScreenshotForm'] = ipadUploadScreenshotForm
+
+            formData[languageId] = formDataForLang
+            formNames[languageId] = formNamesForLang
+            submitActions[languageId] = submitActionForLang
+
+        metadata = AppMetadata(activatedLanguages=activatedLanguages
+                             , nonactivatedLanguages=nonactivatedLanguages
+                             , formData=formData
+                             , formNames=formNames
+                             , submitActions=submitActions)
+
+        return metadata
+
+    def __generateConfigForVersion(self, version):
+        filename = str(self.applicationId) + '.json'
+        languagesDict = {}
+
+        metadata = self.__parseAppVersionMetadata(version)
+        formData = metadata.formData
+        activatedLanguages = metadata.activatedLanguages
+
+        for languageId, formValuesForLang in formData.items():
+            langCode = languages.langCodeForAppleLanguageId(languageId)
+            resultForLang = {}
+
+            resultForLang["name"]               = formValuesForLang['appNameValue']
+            resultForLang["whats new"]          = formValuesForLang.get('whatsNewValue')
+            resultForLang["keywords"]           = formValuesForLang['keywordsValue']
+            resultForLang["support url"]        = formValuesForLang['supportURLValue']
+            resultForLang["marketing url"]      = formValuesForLang['marketingURLValue']
+            resultForLang["privacy policy url"] = formValuesForLang['pPolicyURLValue']
+
+            languagesDict[langCode] = resultForLang
+
+        resultDict = {'application id': self.applicationId, 'config':{}, 'commands': {'general': {}, 'languages': languagesDict}}
+        with open(filename, 'wb') as fp:
+            json.dump(resultDict, fp, sort_keys=True, indent=4, separators=(',', ': '))
+
+
+    def generateConfig(self, versionString=None):
+        if len(self.versions) == 0:
+            self.getVersions()
+        if len(self.versions) == 0:
+            raise 'Can\'t get application versions'
+        if versionString == None: # Suppose there's one or less editable versions
+            versionString = next((versionString for versionString, version in self.versions.items() if version['editable']), None)
+        if versionString == None: # No versions to edit. Generate config from the first one
+            versionString = self.versions.keys()[0]
+        
+        self.__generateConfigForVersion(self.versions[versionString])
+
+
     def editVersion(self, dataDict, lang=None, versionString=None, filename_format=None):
         if dataDict == None or len(dataDict) == 0: # nothing to change
             return
@@ -202,112 +348,41 @@ class ITCApplication(object):
         if not version['editable']:
             raise 'Version ' + versionString + ' is not editable'
 
-        appVersionResponse = requests.get(ITUNESCONNECT_URL + version['detailsLink'], cookies = self._cookie_jar)
-
-        if appVersionResponse.status_code != 200:
-            raise 'Wrong response from iTunesConnect. Status code: ' + str(appVersionResponse.status_code)
-
-        parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder("lxml"), namespaceHTMLElements=False)
-        tree = parser.parse(appVersionResponse.text)
-        localizationLightboxAction = tree.xpath("//div[@id='localizationLightbox']/@action")[0] # if no lang provided, edit default
-        localizationLightboxUpdateAction = tree.xpath("//span[@id='localizationLightboxUpdate']/@action")[0] 
-
-        activatedLanguages    = tree.xpath('//div[@id="modules-dropdown"]/ul/li[count(preceding-sibling::li[@class="heading"])=1]/a/text()')
-        nonactivatedLanguages = tree.xpath('//div[@id="modules-dropdown"]/ul/li[count(preceding-sibling::li[@class="heading"])=2]/a/text()')
-
-        activatedLanguages = [lng.replace("(Default)", "").strip() for lng in activatedLanguages]
-
-        logging.info('Activated languages: ' + ', '.join(activatedLanguages))
-        logging.debug('Nonactivated languages: ' + ', '.join(nonactivatedLanguages))
-        
-        logging.info('Processing language: ' + lang)
-        editResponse = None
         languageId = languages.appleLangIdForLanguageNamed(lang)
-        logging.debug('Apple language id: ' + languageId)
 
-        if lang in activatedLanguages:
-            logging.info('Edit version ' + versionString)
-            editResponse = requests.get(ITUNESCONNECT_URL + localizationLightboxAction + "?open=true" + ("&language=" + languageId if (languageId != None) else ""), cookies = self._cookie_jar)
-        elif lang in nonactivatedLanguages:
-            logging.info('Add ' + lang + ' for version ' + versionString)
-            editResponse = requests.get(ITUNESCONNECT_URL + localizationLightboxAction + "?open=true" + ("&language=" + languageId if (languageId != None) else ""), cookies = self._cookie_jar)
-
-        if editResponse == None:
-            raise 'Wrong language passed (' + lang + '). Please check languages.json for a list of language codes'
-
-        if editResponse.status_code != 200:
-            raise 'Wrong response from iTunesConnect. Status code: ' + str(editResponse.status_code)
-
-        editTree = parser.parse(editResponse.text)
-        hasWhatsNew = False
-
-        submitAction = editTree.xpath("//div[@class='lcAjaxLightboxContentsWrapper']/div[@class='lcAjaxLightboxContents']/@action")[0]
-
-        appNameName     = editTree.xpath("//div[@id='appNameUpdateContainerId']//input/@name")[0]
-        descriptionName = editTree.xpath("//div[@id='descriptionUpdateContainerId']//textarea/@name")[0]
-        whatsNewName    = editTree.xpath("//div[@id='whatsNewinthisVersionUpdateContainerId']//textarea/@name")
-
-        if len(whatsNewName) > 0: # there's no what's new section for first version
-            hasWhatsNew = True
-            whatsNewName = whatsNewName[0]
-
-        keywordsName     = editTree.xpath("//div/label[.='Keywords']/..//input/@name")[0]
-        supportURLName   = editTree.xpath("//div/label[.='Support URL']/..//input/@name")[0]
-        marketingURLName = editTree.xpath("//div/label[contains(., 'Marketing URL')]/..//input/@name")[0]
-        pPolicyURLName   = editTree.xpath("//div/label[contains(., 'Privacy Policy URL')]/..//input/@name")[0]
-
-        appNameValue     = editTree.xpath("//div[@id='appNameUpdateContainerId']//input/@value")[0]
-        descriptionValue = getElement(editTree.xpath("//div[@id='descriptionUpdateContainerId']//textarea/text()"), 0)
-        whatsNewValue    = editTree.xpath("//div[@id='whatsNewinthisVersionUpdateContainerId']//textarea/text()")
-
-        if len(whatsNewValue) > 0 and hasWhatsNew:
-            whatsNewValue = getElement(whatsNewValue, 0)
-
-        keywordsValue     = getElement(editTree.xpath("//div/label[.='Keywords']/..//input/@value"), 0)
-        supportURLValue   = getElement(editTree.xpath("//div/label[.='Support URL']/..//input/@value"), 0)
-        marketingURLValue = getElement(editTree.xpath("//div/label[contains(., 'Marketing URL')]/..//input/@value"), 0)
-        pPolicyURLValue   = getElement(editTree.xpath("//div/label[contains(., 'Privacy Policy URL')]/..//input/@value"), 0)
-
-        formData = {}
-        formData[appNameName] = appNameValue
-        formData[descriptionName] = descriptionValue
-        if hasWhatsNew:
-            formData[whatsNewName] = whatsNewValue
-
-        formData[keywordsName] = keywordsValue
-        formData[supportURLName] = supportURLValue
-        formData[marketingURLName] = marketingURLValue
-        formData[pPolicyURLName] = pPolicyURLValue
-
-        logging.debug("Old values:")
-        logging.debug(formData)
+        metadata = self.__parseAppVersionMetadata(version, lang)
+        activatedLanguages = metadata.activatedLanguages
+        nonactivatedLanguages = metadata.nonactivatedLanguages
+        formData = metadata.formData[languageId]
+        formNames = metadata.formNames[languageId]
+        submitAction = metadata.submitActions[languageId]
 
         formData["save"] = "true"
 
         if 'name' in dataDict:
-            formData[descriptionName] = dataDict['name']
+            formData[formNames['descriptionName']] = dataDict['name']
 
         if 'description' in dataDict:
-            formData[appNameName] = dataDict['description']
+            formData[formNames['appNameName']] = dataDict['description']
 
-        if hasWhatsNew and 'whats new' in dataDict:
-            formData[whatsNewName] = dataDict['whats new']
+        if ('whatsNewName' in formNames) and ('whats new' in dataDict):
+            formData[formNames['whatsNewName']] = dataDict['whats new']
 
         if 'keywords' in dataDict:
-            formData[keywordsName] = dataDict['keywords']
+            formData[formNames['keywordsName']] = dataDict['keywords']
 
         if 'support url' in dataDict:
-            formData[supportURLName] = dataDict['support url']
+            formData[formNames['supportURLName']] = dataDict['support url']
 
         if 'marketing url' in dataDict:
-            formData[marketingURLName] = dataDict['marketing url']
+            formData[formNames['marketingURLName']] = dataDict['marketing url']
 
         if 'privacy policy url' in dataDict:
-            formData[pPolicyURLName] = dataDict['privacy policy url']
+            formData[formNames['pPolicyURLName']] = dataDict['privacy policy url']
 
-        iphoneUploadScreenshotForm = editTree.xpath("//form[@name='FileUploadForm_35InchRetinaDisplayScreenshots']")[0]
-        iphone5UploadScreenshotForm = editTree.xpath("//form[@name='FileUploadForm_iPhone5']")[0]
-        ipadUploadScreenshotForm = editTree.xpath("//form[@name='FileUploadForm_iPadScreenshots']")[0]
+        iphoneUploadScreenshotForm  = formNames['iphoneUploadScreenshotForm'] 
+        iphone5UploadScreenshotForm = formNames['iphone5UploadScreenshotForm']
+        ipadUploadScreenshotForm    = formNames['ipadUploadScreenshotForm']
 
         iphoneUploadScreenshotJS = iphoneUploadScreenshotForm.xpath('../following-sibling::script/text()')[0]
         iphone5UploadScreenshotJS = iphone5UploadScreenshotForm.xpath('../following-sibling::script/text()')[0]
@@ -359,6 +434,10 @@ class ITCApplication(object):
                     cmd = imageAction['cmd']
                     indexes = imageAction['indexes']
 
+                    imagePath = filename_format.replace('{language}', languageCode) \
+                           .replace('{device_type}', DEVICE_TYPE.deviceStrings[device_type])
+                    logging.debug('Looking for images at ' + imagePath)
+
                     if (indexes == None) and ((cmd == 'u') or (cmd == 'r')):
                         indexes = []
                         for i in range(0, 5):
@@ -381,9 +460,6 @@ class ITCApplication(object):
                     
                     if (cmd == 'u') or (cmd == 'r'): # upload or replace
                         currentIndexes = [img['id'] for img in self._images[device_type]]
-                        imagePath = filename_format.replace('{language}', languageCode) \
-                                                   .replace('{device_type}', DEVICE_TYPE.deviceStrings[device_type])
-                        logging.debug('Looking for images at ' + imagePath)
 
                         if indexes == None:
                             continue

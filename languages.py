@@ -44,6 +44,18 @@ def langCodeForLanguageNamed(languageString):
                 
     return None
 
+def langCodeForAppleLanguageId(languageString):
+    for langId in langs():
+        lang = langs()[langId]
+        if type(lang) is dict:
+            if lang['id'] == languageString:
+                return langId
+        else:
+            if lang == languageString:
+                return langId
+                
+    return None
+
 def languageNameForId(languageId):
     lang = langs()[languageId]
     if type(lang) is dict:

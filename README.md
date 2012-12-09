@@ -5,12 +5,11 @@ Disclaimer
 
 itc.cli
 =======
-
 iTunesConnect command line interface **β**
 
 Script allows to add/edit metadata and uploads of the application through iTunesConnect without user interaction.
 
-This is my first ever application written in python, so, please don't judge too strict ;)
+This is my first ever application written in python, so, please don't judge me too harshly ;)
 
 License
 =======
@@ -115,7 +114,7 @@ There's an option in ````config```` section:
 }
 ````
 
-For example, in this case, the folder structure may look as follows:
+Imagine you have the following folder structure:
 ````
 itc.cli.git\
     images\
@@ -177,3 +176,4 @@ Roadmap
 =======
 
 Two features are planned to be implemented: inapp purchases management and promo codes.
+... and may be sales reports.

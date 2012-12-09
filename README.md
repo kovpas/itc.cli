@@ -40,7 +40,7 @@ Every time you run the script, it uses cookies which are stored in the file ````
 
 Party begins with ````--config_file```` parameter:
 
-````./itc.py --username apple_id --config_file actions.json````
+````./itc.py --username apple_id --config-file actions.json````
 
 Config file format
 =======
@@ -175,5 +175,5 @@ In the example above, all iPad and pt/iPhone 5 screenshots will be uploaded by g
 Roadmap
 =======
 
-Two features are planned to be implemented: inapp purchases management and promo codes.
+Two features are planned to be implemented: inapp purchases management and promo codes.  
 ... and may be sales reports.

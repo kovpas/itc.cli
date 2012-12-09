@@ -337,8 +337,6 @@ class ITCApplication(object):
             languageCode = languages.langCodeForLanguageNamed(lang)
 
             for dType in imagesActions:
-                print 
-                print 
                 device_type = None
                 if dType.lower() == 'iphone':
                     device_type = DEVICE_TYPE.iPhone
@@ -358,7 +356,10 @@ class ITCApplication(object):
                     imageAction.setdefault('indexes')
                     cmd = imageAction['cmd']
                     indexes = imageAction['indexes']
-
+                    imagePath = filename_format.replace('{language}', languageCode) \
+                                               .replace('{device_type}', DEVICE_TYPE.deviceStrings[device_type])
+                    logging.debug('Looking for images at ' + imagePath)
+                    
                     if (indexes == None) and ((cmd == 'u') or (cmd == 'r')):
                         indexes = []
                         for i in range(0, 5):
@@ -381,9 +382,6 @@ class ITCApplication(object):
                     
                     if (cmd == 'u') or (cmd == 'r'): # upload or replace
                         currentIndexes = [img['id'] for img in self._images[device_type]]
-                        imagePath = filename_format.replace('{language}', languageCode) \
-                                                   .replace('{device_type}', DEVICE_TYPE.deviceStrings[device_type])
-                        logging.debug('Looking for images at ' + imagePath)
 
                         if indexes == None:
                             continue

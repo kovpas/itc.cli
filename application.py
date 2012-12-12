@@ -1,3 +1,5 @@
+# coding=utf-8
+
 import os
 import sys
 import re
@@ -50,6 +52,7 @@ class ITCApplication(object):
         self._uploadSessionData = {}
         self._images = {}
         self._manageInappsLink = None
+        self._manageInappsTree = None
         self._createInappLink = None
         self._inappActionURLs = None
 
@@ -522,7 +525,41 @@ class ITCApplication(object):
     def __parseInappActionURLsFromScript(self, script):
         matches = re.findall('\'([^\']+)\'\s:\s\'([^\']+)\'', script)
         self._inappActionURLs = dict((k, v) for k, v in matches if k.endswith('Url'))
+        ITCInappPurchase.actionURLs = self._inappActionURLs
+
         return self._inappActionURLs
+
+
+    def __parseInappsFromTree(self, refreshContainerTree):
+        logging.debug('Parsing inapps response')
+        inappULs = refreshContainerTree.xpath('.//li[starts-with(@id, "ajaxListRow_")]')
+
+        if len(inappULs) == 0:
+            logging.info('No In-App Purchases found')
+            return None
+
+        logging.debug('Found ' + str(len(inappULs)) + ' inapps')
+
+        inappsActionScript = refreshContainerTree.xpath('//script[contains(., "var arguments")]/text()')
+        if len(inappsActionScript) > 0:
+            inappsActionScript = inappsActionScript[0]
+            actionURLs = self.__parseInappActionURLsFromScript(inappsActionScript)
+            inappsItemAction = actionURLs['itemActionUrl']
+
+        inapps = {}
+        for inappUL in inappULs:
+            numericId = inappUL.xpath('./div[starts-with(@class,"ajaxListRowDiv")]/@itemid')[0]
+            if self.inapps.get(numericId) != None:
+                inapps[numericId] = self.inapps.get(numericId)
+                continue
+
+            name = inappUL.xpath('./div/div/span/text()')[0].strip()
+            productId = inappUL.xpath('./div/div[3]/text()')[0].strip()
+            iaptype = inappUL.xpath('./div/div[4]/text()')[0].strip()
+            manageLink = inappsItemAction + "?itemID=" + numericId
+            inapps[numericId] = ITCInappPurchase(name=name, numericId=numericId, productId=productId, iaptype=iaptype, manageLink=manageLink, cookie_jar=self._cookie_jar)
+
+        return inapps
 
 
     def getInapps(self):
@@ -530,6 +567,8 @@ class ITCApplication(object):
             self.getAppInfo()
         if self._manageInappsLink == None:
             raise 'Can\'t get "Manage In-App purchases link :(("'
+
+        # TODO: parse multiple pages of inapps.
 
         manageInappsResponse = requests.get(ITUNESCONNECT_URL + self._manageInappsLink, cookies = self._cookie_jar)
 
@@ -540,23 +579,83 @@ class ITCApplication(object):
         tree = parser.parse(manageInappsResponse.text)
 
         self._createInappLink = tree.xpath('//img[contains(@src, "btn-create-new-in-app-purchase.png")]/../@href')[0]
-        inappULs = tree.xpath('//span[@id="ajaxListListRefreshContainerId"]/ul/li[starts-with(@id, "ajaxListRow_")]')
+        if ITCInappPurchase.createInappLink == None:
+            ITCInappPurchase.createInappLink = self._createInappLink
 
-        if len(inappULs) == 0:
-            logging.info('No In-App Purchases found')
-            return
+        refreshContainerTree = tree.xpath('//span[@id="ajaxListListRefreshContainerId"]/ul')[0]
+        self.inapps = self.__parseInappsFromTree(refreshContainerTree)
 
-        inappsActionScript = tree.xpath('//script[contains(., "var arguments")]/text()')[0]
-        actionURLs = self.__parseInappActionURLsFromScript(inappsActionScript)
-        inappsItemAction = actionURLs['itemActionUrl']
 
-        for inappUL in inappULs:
-            numericId = inappUL.xpath('./div[starts-with(@class,"ajaxListRowDiv")]/@itemid')[0]
-            name = inappUL.xpath('./div/div/span/text()')[0].strip()
-            productId = inappUL.xpath('./div/div[3]/text()')[0].strip()
-            iaptype = inappUL.xpath('./div/div[4]/text()')[0].strip()
-            manageLink = inappsItemAction + "?itemID=" + numericId
-            self.inapps[numericId] = ITCInappPurchase(name=name, numericId=numericId, productId=productId, iaptype=iaptype, manageLink=manageLink, cookie_jar=self._cookie_jar)
+    def getInappById(self, inappId):
+        if self._inappActionURLs == None:
+            self.getInapps()
+
+        if type(inappId) is int:
+            inappId = str(inappId)
+
+        if self.inapps.get(inappId) != None:
+            return self.inapps[inappId]
+
+        parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder("lxml"), namespaceHTMLElements=False)
+
+        if self._manageInappsTree == None:
+            manageInappsResponse = requests.get(ITUNESCONNECT_URL + self._manageInappsLink, cookies = self._cookie_jar)
+
+            if manageInappsResponse.status_code != 200:
+                raise 'Wrong response from iTunesConnect. Status code: ' + str(manageInappsResponse.status_code)
+
+            self._manageInappsTree = parser.parse(manageInappsResponse.text)
+
+        tree = self._manageInappsTree
+        reloadInappsAction = tree.xpath('//span[@id="ajaxListListRefreshContainerId"]/@action')[0]
+        searchAction = self._inappActionURLs['searchActionUrl']
+
+        logging.info('Searching for inapp with id ' + inappId)
+
+        searchResponse = requests.get(ITUNESCONNECT_URL + searchAction + "?query=" + inappId, cookies = self._cookie_jar)
+
+        if searchResponse.status_code != 200:
+            raise 'Wrong response from iTunesConnect. Status code: ' + str(searchResponse.status_code)
+
+        statusJSON = json.loads(searchResponse.content)
+        if statusJSON['totalItems'] <= 0:
+            logging.warn('No matching inapps found! Search term: ' + inappId)
+            return None
+
+        searchResponse = requests.get(ITUNESCONNECT_URL + reloadInappsAction, cookies = self._cookie_jar)
+
+        if searchResponse.status_code != 200:
+            raise 'Wrong response from iTunesConnect. Status code: ' + str(searchResponse.status_code)
+
+        inapps = self.__parseInappsFromTree(parser.parse(searchResponse.text))
+
+        if inapps == None:
+            raise "Error parsing inapps"
+
+        if len(inapps) == 1:
+            return inapps[0]
+
+        tmpinapps = []
+        for numericId, inapp in inapps.items():
+            print inapp.numericId
+            if (inapp.numericId == inappId) or (inapp.productId == inappId):
+                return inapp
+
+            components = inapp.productId.partition(u'…')
+            if components[1] == u'…': #split successful
+                if inappId.startswith(components[0]) and inappId.endswith(components[2]):
+                    tmpinapps.append(inapp)
+
+        if len(tmpinapps) == 1:
+            return tmpinapps[0]
+
+        logging.error('Multiple inapps found for id (' + inappId + ').')
+        logging.error(tmpinapps)
+
+        # TODO: handle this situation. It is possible to avoid this exception by requesting
+        # each result's page. Possible, but expensive :)
+        raise 'Ambiguous search result.'
+
 
 
     def createInapp(self, inappDict):
@@ -564,9 +663,6 @@ class ITCApplication(object):
             self.getInapps()
         if self._createInappLink == None:
             raise 'Can\'t create inapp purchase'
-
-        if ITCInappPurchase.createInappLink == None:
-            ITCInappPurchase.createInappLink = self._createInappLink
 
         iap = ITCInappPurchase(name=inappDict['reference name']
                              , productId=inappDict['id']

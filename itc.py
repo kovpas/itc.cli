@@ -149,7 +149,16 @@ def main():
 
     if applicationId in server.applications:
         application = server.applications[applicationId]
-        application.createInapp(applicationDict['inapps'][0])
+
+        inapp = application.getInappById(applicationDict['inapps'][0]['id'])
+        if inapp == None:
+            application.createInapp(applicationDict['inapps'][0])
+        else:
+            print(inapp)
+            inapp.name = "My name"
+            print(inapp.numericId)
+            inapp.update(None)
+
         return
         for lang in langActions:
             actions = langActions[lang]

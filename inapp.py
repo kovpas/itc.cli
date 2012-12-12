@@ -23,6 +23,7 @@ def getElement(list, index):
 class ITCInappPurchase(object):
     createInappLink = None
     actionURLs = None
+    __parser = None
 
     def __init__(self, name=None, numericId=None, productId=None, iaptype=None, manageLink=None, cookie_jar=None):
         self.name = name
@@ -34,6 +35,10 @@ class ITCInappPurchase(object):
         self.hostingContentWithApple = False
         self.manageLink = manageLink
         self._cookie_jar = cookie_jar
+
+        if ITCInappPurchase.__parser == None:
+            ITCInappPurchase.__parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder("lxml"), namespaceHTMLElements=False)
+
 
         logging.info('Inapp found: ' + self.__str__())
         logging.debug('productId: ' + (self.productId if self.productId != None else ""))
@@ -54,14 +59,66 @@ class ITCInappPurchase(object):
 
         return strng
 
+    def update(self, langDict):
+        createInappsResponse = requests.get(ITUNESCONNECT_URL + ITCInappPurchase.actionURLs['itemActionUrl'] + "?itemID=" + self.numericId, cookies = self._cookie_jar)
+
+        if createInappsResponse.status_code != 200:
+            raise 'Wrong response from iTunesConnect. Status code: ' + str(createInappsResponse.status_code)
+
+        tree = ITCInappPurchase.__parser.parse(createInappsResponse.text)
+
+        # for non-consumable iap we can change name, cleared-for-sale and pricing. Check if we need to:
+        inappReferenceName = tree.xpath('//span[@id="iapReferenceNameUpdateContainer"]//span/text()')[0]
+        clearedForSaleText = tree.xpath('//div[contains(@class,"cleared-for-sale")]//span/text()')[0]
+        clearedForSale = False
+        if clearedForSaleText == 'Yes':
+            clearedForSale = True
+
+        # TODO: change price tier
+        if (inappReferenceName != self.name) or (clearedForSale != self.clearedForSale):
+            editAction = tree.xpath('//div[@id="singleAddonPricingLightbox"]/@action')[0]
+
+            editInappsResponse = requests.get(ITUNESCONNECT_URL + editAction, cookies = self._cookie_jar)
+
+            if editInappsResponse.status_code != 200:
+                raise 'Wrong response from iTunesConnect. Status code: ' + str(editInappsResponse.status_code)
+
+            inappTree = ITCInappPurchase.__parser.parse(editInappsResponse.text)
+
+            inappReferenceNameName = inappTree.xpath('//div[@id="referenceNameTooltipId"]/..//input/@name')[0]
+            clearedForSaleName = inappTree.xpath('//div[contains(@class,"cleared-for-sale")]//input[@classname="radioTrue"]/@name')[0]
+            clearedForSaleNames = {}
+            clearedForSaleNames["true"] = inappTree.xpath('//div[contains(@class,"cleared-for-sale")]//input[@classname="radioTrue"]/@value')[0]
+            clearedForSaleNames["false"] = inappTree.xpath('//div[contains(@class,"cleared-for-sale")]//input[@classname="radioFalse"]/@value')[0]
+            inappPriceTierName = inappTree.xpath('//select[@id="price_tier_popup"]/@name')[0]
+
+            dateComponentsNames = inappTree.xpath('//select[contains(@id, "_day")]/@name')
+            dateComponentsNames.extend(inappTree.xpath('//select[contains(@id, "_month")]/@name'))
+            dateComponentsNames.extend(inappTree.xpath('//select[contains(@id, "_year")]/@name'))
+
+            postAction = inappTree.xpath('//div[@class="lcAjaxLightboxContents"]/@action')[0]
+
+            formData = {}
+            formData[inappReferenceNameName] = self.name
+            formData[clearedForSaleName] = clearedForSaleNames["true" if self.clearedForSale else "false"]
+            formData[inappPriceTierName] = 'WONoSelectionString'
+            for dcn in dateComponentsNames:
+                formData[dcn] = 'WONoSelectionString'
+            formData['save'] = "true"
+
+            postFormResponse = requests.post(ITUNESCONNECT_URL + postAction, data = formData, cookies = self._cookie_jar)
+
+            if postFormResponse.status_code != 200:
+                raise 'Wrong response from iTunesConnect. Status code: ' + str(postFormResponse.status_code)
+
+
     def create(self, langDict):
         createInappsResponse = requests.get(ITUNESCONNECT_URL + ITCInappPurchase.createInappLink, cookies = self._cookie_jar)
 
         if createInappsResponse.status_code != 200:
             raise 'Wrong response from iTunesConnect. Status code: ' + str(createInappsResponse.status_code)
 
-        parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder("lxml"), namespaceHTMLElements=False)
-        tree = parser.parse(createInappsResponse.text)
+        tree = ITCInappPurchase.__parser.parse(createInappsResponse.text)
 
         inapptype = self.type
         newInappLink = tree.xpath('//form[@name="mainForm"]/@action')[0]
@@ -69,7 +126,7 @@ class ITCInappPurchase(object):
         
         formData = {formKeyName + '.x': 46, formKeyName + '.y': 10}
         createInappResponse = requests.post(ITUNESCONNECT_URL + newInappLink, data=formData, cookies=self._cookie_jar)
-        inappTree = parser.parse(createInappResponse.text)
+        inappTree = ITCInappPurchase.__parser.parse(createInappResponse.text)
 
         if createInappResponse.status_code != 200:
             raise 'Wrong response from iTunesConnect. Status code: ' + str(createInappResponse.status_code)
@@ -100,7 +157,7 @@ class ITCInappPurchase(object):
                 raise 'Wrong response from iTunesConnect. Status code: ' + str(createInappResponse.status_code)
 
             langName = languages.languageNameForId(langId)
-            localizationTree = parser.parse(createInappLocalizationResponse.text)
+            localizationTree = ITCInappPurchase.__parser.parse(createInappLocalizationResponse.text)
             localizationSaveAction = localizationTree.xpath('//div[@class="lcAjaxLightboxContents"]/@action')[0]
             languageSelect = localizationTree.xpath('//select[@id="language-popup"]')[0]
             langSelectName = languageSelect.xpath('./@name')[0]
@@ -138,7 +195,7 @@ class ITCInappPurchase(object):
             raise 'Wrong response from iTunesConnect. Status code: ' + str(postFormResponse.status_code)
 
         createInappResponse = requests.post(ITUNESCONNECT_URL + newInappLink, data=formData, cookies=self._cookie_jar)
-        postFormTree = parser.parse(postFormResponse.text)
+        postFormTree = ITCInappPurchase.__parser.parse(postFormResponse.text)
         errorDiv = postFormTree.xpath('//div[@id="LCPurpleSoftwarePageWrapperErrorMessage"]')
 
         if len(errorDiv) > 0:

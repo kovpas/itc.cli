@@ -214,7 +214,7 @@ The second one is by using templates.
 ````JSON
 {
   "index iterator": {
-    "indexes": ['1', '3', '5']
+    "indexes": [1, 3, 5]
   }
   "id": "ru.kovpas.itc.cli.test.1.inapp.{index}",
   "type": "Non-Renewing Subscription",

@@ -206,7 +206,8 @@ There are two ways of managing inapps. The first one is one by one:
       "description": "Description inapp - pt",
     }
   }
-}, {2nd inapp}, {3rd inapp}, ...]````
+}, {2nd inapp}, {3rd inapp}, ...]
+````
 
 The second one is by using templates. 
 
@@ -239,7 +240,8 @@ The second one is by using templates.
       "description": "Description inapp - {index} - pt",
     }
   }
-}````
+}
+````
 
 Script iterates through ````indexes```` array and creates inapp purchase. Every ````{index}```` keyword is replaced by corresponding index. For the example above 3 inapps will be created.
 

@@ -7,7 +7,7 @@ itc.cli
 =======
 iTunesConnect command line interface **β**
 
-Script allows to add/edit metadata and uploads of the application through iTunesConnect without user interaction.
+Script allows to add/edit metadata, uploads and in-app purchases of the application through iTunesConnect without user interaction.
 
 This is my first ever application written in python, so, please don't judge me too harshly ;)
 
@@ -171,6 +171,77 @@ Of course for each language you can specify exact indexes of replaced/deleted an
 ````
 
 In the example above, all iPad and pt/iPhone 5 screenshots will be uploaded by generic rule. The rest are specific for each language.
+
+
+In-App purchases
+=======
+
+At the moment, only 4 of 5 inapp types are supported: 'Consumable', 'Non-Consumable', 'Free Subscription', 'Non-Renewing Subscription'
+
+There are two ways of managing inapps. The first one is one by one:
+
+````JSON
+[{       
+  "id": "ru.kovpas.itc.cli.test.1.inapp.1",
+  "type": "Non-Consumable",
+  "reference name": "Test inapp",
+  "price tier": 2,
+  "cleared": false,
+  "hosting content with apple": false,
+  "review notes": "Notes",
+  "general": {
+    "name": "Test inapp",
+    "description": "Description inapp",
+    "publication name": "Publication inapp" <- only used for appropriate inapps 
+  },
+  "languages": {
+    "en": {
+      "name": "Test inapp - en",
+      "description": "Description inapp - en",
+    },
+    "ru": {
+      "publication name": "Publication inapp - ru"
+    },
+    "pt": {
+      "description": "Description inapp - pt",
+    }
+  }
+}, {2nd inapp}, {3rd inapp}, ...]````
+
+The second one is by using templates. 
+
+````JSON
+{
+  "index iterator": {
+    "indexes": ['1', '3', '5']
+  }
+  "id": "ru.kovpas.itc.cli.test.1.inapp.{index}",
+  "type": "Non-Renewing Subscription",
+  "reference name": "Test inapp - {index}",
+  "price tier": 2,
+  "cleared": false,
+  "hosting content with apple": false,
+  "review notes": "Notes",
+  "general": {
+    "name": "Test inapp - {index}",
+    "description": "Description inapp - {index}",
+    "publication name": "Publication inapp - {index}"
+  },
+  "languages": {
+    "en": {
+      "name": "Test inapp - {index} - en",
+      "description": "Description inapp - {index} - en",
+    },
+    "ru": {
+      "publication name": "Publication inapp - {index} - ru"
+    },
+    "pt": {
+      "description": "Description inapp - {index} - pt",
+    }
+  }
+}````
+
+Script iterates through ````indexes```` array and creates inapp purchase. Every ````{index}```` keyword is replaced by corresponding index. For the example above 3 inapps will be created.
 
 Roadmap
 =======

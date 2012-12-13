@@ -9,6 +9,7 @@ import sys
 import json
 import getpass
 import logging
+import copy
 
 from server import ITCServer 
 from copy import deepcopy 
@@ -150,19 +151,56 @@ def main():
     if applicationId in server.applications:
         application = server.applications[applicationId]
 
-        inapp = application.getInappById(applicationDict['inapps'][0]['id'])
-        if inapp == None:
-            application.createInapp(applicationDict['inapps'][0])
-        else:
-            print(inapp)
-            inapp.name = "My name"
-            print(inapp.numericId)
-            inapp.update(None)
+        # for lang in langActions:
+        #     actions = langActions[lang]
+        #     application.editVersion(actions, lang=lang, filename_format=filename_format)
 
-        return
-        for lang in langActions:
-            actions = langActions[lang]
-            #application.editVersion(actions, lang=lang, filename_format=filename_format)
+        for inappDict in applicationDict['inapps']:
+            isIterable = inappDict['id'].find('{index}') != -1
+            iteratorDict = inappDict.get('index_iterator')
+
+            if isIterable and (iteratorDict == None):
+                logging.error('Inapp id contains {index} keyword, but no index_iterator object found.')
+                continue
+
+            langsDict = inappDict['languages']
+            genericLangsDict = inappDict['general']
+
+            for langId in langsDict:
+                langsDict[langId] = dict_merge(genericLangsDict, langsDict[langId])
+
+            inappDict['languages'] = langsDict
+
+            indexes = [-1]
+            if (isIterable):
+                indexes = iteratorDict.get('indexes')
+                if indexes == None:
+                    indexes = range(iteratorDict.get('from', 1), iteratorDict['to'] + 1)
+
+            for index in indexes:
+                inappIndexDict = copy.deepcopy(inappDict)
+                if isIterable:
+                    for key in inappIndexDict:
+                        if (type(inappIndexDict[key]) is str) or (type(inappIndexDict[key]) is unicode):
+                            inappIndexDict[key] = inappIndexDict[key].replace("{index}", str(index))
+                    langsDict = inappDict['languages']
+                    print
+                    print
+                    print(inappIndexDict)
+                    print
+                    print
+
+                    for langId, langDict in langsDict.items():
+                        for langKey in langDict:
+                            if type(langDict[langKey]) is str:
+                                langDict[langKey] = langDict[langKey].replace("{index}", index)
+
+                inapp = application.getInappById(inappIndexDict['id'])
+                if inapp == None:
+                    application.createInapp(inappIndexDict)
+                else:
+                    inapp.update(inappIndexDict)
+
 
 
 if __name__ == "__main__":

@@ -20,7 +20,15 @@ def langs():
 
     return globals()['languages_map']
 
-def appleLangIdForLanguageNamed(languageString):
+# returns apple language id (i.e. 'French_CA') for language name (i.e. 'Canadian French') or code (i.e. 'fr-CA')
+def appleLangIdForLanguage(languageString):
+    lang = langs().get(languageString)
+    if lang != None:
+        if type(lang) is dict:
+            return lang['name']
+
+        return lang
+
     for langId in langs():
         lang = langs()[langId]
         if type(lang) is dict:
@@ -32,23 +40,12 @@ def appleLangIdForLanguageNamed(languageString):
                 
     return None
 
-def langCodeForLanguageNamed(languageString):
+# returns language code (i.e. 'fr-CA') for language name (i.e. 'Canadian French') or apple language id (i.e. 'French_CA')
+def langCodeForLanguage(languageString):
     for langId in langs():
         lang = langs()[langId]
         if type(lang) is dict:
-            if lang['name'] == languageString:
-                return langId
-        else:
-            if lang == languageString:
-                return langId
-                
-    return None
-
-def langCodeForAppleLanguageId(languageString):
-    for langId in langs():
-        lang = langs()[langId]
-        if type(lang) is dict:
-            if lang['id'] == languageString:
+            if (lang['name'] == languageString) or (lang['id'] == languageString):
                 return langId
         else:
             if lang == languageString:

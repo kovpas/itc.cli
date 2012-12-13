@@ -44,25 +44,37 @@
         },
         "inapps": [
             {
-                "id": "ru.kovpas.itc.cli.test.1.inapp.2",
+                "index_iterator": {
+                    "from": 7,
+                    "to": 9
+                },
+                "id": "ru.kovpas.itc.cli.test.1.inapp.{index}",
                 "type": "Non-Consumable",
-                "reference name": "Test inapp - 2",
-                "price tier": 4,
+                "reference name": "Test inapp - {index}",
+                "price tier": 2,
                 "cleared": false,
                 "hosting content with apple": false,
                 "review notes": "Notes",
                 "general": {
-                    "name": "Test inapp - 1",
-                    "description": "Description inapp - 1"
+                    "name": "Test inapp - {index}",
+                    "description": "Description inapp - {index}",
+                    "publication name": "Publication inapp - {index}"
                 },
                 "languages": {
                     "en": {
-                        "name": "Test inapp - 1 - en",
-                        "description": "Description inapp - 1 - en"
+                        "name": "Test inapp - {index} - en",
+                        "description": "Description inapp - {index} - en",
+                        "publication name": "Publication inapp - {index} - en"
+                    },
+                    "ru": {
+                        "name": "Test inapp - {index} - ru",
+                        "description": "Description inapp - {index} - ru",
+                        "publication name": "Publication inapp - {index} - ru"
                     },
                     "pt": {
-                        "name": "Test inapp - 1 - pt",
-                        "description": "Description inapp - 1 - pt"
+                        "name": "Test inapp - {index} - pt",
+                        "description": "Description inapp - {index} - pt",
+                        "publication name": "Publication inapp - {index} - pt"
                     }
                 }
             }

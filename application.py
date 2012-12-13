@@ -238,7 +238,7 @@ class ITCApplication(object):
         for lang in langs:
             logging.info('Processing language: ' + lang)
             editResponse = None
-            languageId = languages.appleLangIdForLanguageNamed(lang)
+            languageId = languages.appleLangIdForLanguage(lang)
             logging.debug('Apple language id: ' + languageId)
 
             if lang in activatedLanguages:
@@ -321,7 +321,7 @@ class ITCApplication(object):
         activatedLanguages = metadata.activatedLanguages
 
         for languageId, formValuesForLang in formData.items():
-            langCode = languages.langCodeForAppleLanguageId(languageId)
+            langCode = languages.langCodeForLanguage(languageId)
             resultForLang = {}
 
             resultForLang["name"]               = formValuesForLang['appNameValue']
@@ -368,7 +368,7 @@ class ITCApplication(object):
         if not version['editable']:
             raise 'Version ' + versionString + ' is not editable'
 
-        languageId = languages.appleLangIdForLanguageNamed(lang)
+        languageId = languages.appleLangIdForLanguage(lang)
 
         metadata = self.__parseAppVersionMetadata(version, lang)
         activatedLanguages = metadata.activatedLanguages
@@ -429,7 +429,7 @@ class ITCApplication(object):
 
         if 'images' in dataDict:
             imagesActions = dataDict['images']
-            languageCode = languages.langCodeForLanguageNamed(lang)
+            languageCode = languages.langCodeForLanguage(lang)
 
             for dType in imagesActions:
                 device_type = None
@@ -548,16 +548,20 @@ class ITCApplication(object):
 
         inapps = {}
         for inappUL in inappULs:
-            numericId = inappUL.xpath('./div[starts-with(@class,"ajaxListRowDiv")]/@itemid')[0]
-            if self.inapps.get(numericId) != None:
-                inapps[numericId] = self.inapps.get(numericId)
+            appleId = inappUL.xpath('./div/div[5]/text()')[0].strip()
+            if self.inapps.get(appleId) != None:
+                inapps[appleId] = self.inapps.get(appleId)
                 continue
 
+            iaptype = inappUL.xpath('./div/div[4]/text()')[0].strip()  
+            if not (iaptype in ITCInappPurchase.supportedIAPTypes):
+                continue
+
+            numericId = inappUL.xpath('./div[starts-with(@class,"ajaxListRowDiv")]/@itemid')[0]
             name = inappUL.xpath('./div/div/span/text()')[0].strip()
             productId = inappUL.xpath('./div/div[3]/text()')[0].strip()
-            iaptype = inappUL.xpath('./div/div[4]/text()')[0].strip()
             manageLink = inappsItemAction + "?itemID=" + numericId
-            inapps[numericId] = ITCInappPurchase(name=name, numericId=numericId, productId=productId, iaptype=iaptype, manageLink=manageLink, cookie_jar=self._cookie_jar)
+            inapps[appleId] = ITCInappPurchase(name=name, appleId=appleId, numericId=numericId, productId=productId, iaptype=iaptype, manageLink=manageLink, cookie_jar=self._cookie_jar)
 
         return inapps
 
@@ -663,6 +667,10 @@ class ITCApplication(object):
             self.getInapps()
         if self._createInappLink == None:
             raise 'Can\'t create inapp purchase'
+
+        if not (inappDict['type'] in ITCInappPurchase.supportedIAPTypes):
+            logging.error('Can\'t create inapp purchase: "' + inappDict['id'] + '" is not supported')
+            return
 
         iap = ITCInappPurchase(name=inappDict['reference name']
                              , productId=inappDict['id']

@@ -245,6 +245,18 @@ The second one is by using templates.
 
 Script iterates through ````indexes```` array and creates inapp purchase. Every ````{index}```` keyword is replaced by corresponding index. For the example above 3 inapps will be created.
 
+Another way is to create start and end indexes:
+````JSON
+{
+  "index iterator": {
+    "from": 7,
+    "to": 9
+  }
+}
+````
+
+If ````from```` index is not provided, 1 is used. ````to```` index is mandatory.
+
 Roadmap
 =======
 

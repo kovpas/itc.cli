@@ -44,7 +44,7 @@
         },
         "inapps": [
             {
-                "index_iterator": {
+                "index iterator": {
                     "from": 7,
                     "to": 9
                 },

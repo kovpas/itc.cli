@@ -157,7 +157,7 @@ def main():
 
         for inappDict in applicationDict['inapps']:
             isIterable = inappDict['id'].find('{index}') != -1
-            iteratorDict = inappDict.get('index_iterator')
+            iteratorDict = inappDict.get('index iterator')
 
             if isIterable and (iteratorDict == None):
                 logging.error('Inapp id contains {index} keyword, but no index_iterator object found.')

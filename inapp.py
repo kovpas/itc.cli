@@ -113,8 +113,8 @@ class ITCInappPurchase(object):
 
         logging.debug('Updating inapp: ' + inappDict.__str__())
 
-        self.name = inappDict['name']
-        self.clearedForSale = inappDict['cleared']
+        self.name = inappDict.get('name', self.name)
+        self.clearedForSale = inappDict.get('cleared', self.clearedForSale)
 
         # TODO: change price tier
         if (inappReferenceName != self.name) or (clearedForSale != self.clearedForSale):
@@ -161,7 +161,7 @@ class ITCInappPurchase(object):
         logging.info('Activated languages for inapp ' + self.numericId + ': ' + ', '.join(activatedLanguages))
         logging.debug('Activated languages ids: ' + ', '.join(activatedLangsIds))
 
-        langDict = inappDict['languages']
+        langDict = inappDict.get('languages', {})
         for langId, langVal in langDict.items():
             if type(langVal) is str:
                 if langId in activatedLangsIds and langVal == 'd': # delete lang

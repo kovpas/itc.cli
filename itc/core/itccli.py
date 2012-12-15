@@ -1,30 +1,26 @@
-#!/usr/bin/env python
-
-import cookielib
 import os
-import argparse
 import logging
 import platform
 import sys
 import json
 import getpass
-import logging
-import copy
-
-from server import ITCServer 
 from copy import deepcopy 
-import languages
+from argparse import ArgumentParser
+
+from itc.core.server import ITCServer
+from itc.util import *
+from itc.conf import *
 
 options = None
 config = {}
 
-def parse_options(args):
-    parser = argparse.ArgumentParser(description='Command line interface for iTunesConnect.')
+def __parse_options(args):
+    parser = ArgumentParser(description='Command line interface for iTunesConnect.')
     parser.add_argument('--debug', '-d', dest='debug', default=False, action='store_true',
                        help='Debug output')
-    parser.add_argument('--username', '-u', dest='username', metavar="USERNAME",
+    parser.add_argument('--username', '-u', dest='username', metavar='USERNAME',
                        help='iTunesConnect username')
-    parser.add_argument('--password', '-p', dest='password', metavar="PASSWORD",
+    parser.add_argument('--password', '-p', dest='password', metavar='PASSWORD',
                        help='iTunesConnect password')
 
     group = parser.add_mutually_exclusive_group()
@@ -35,43 +31,28 @@ def parse_options(args):
     group.add_argument('--config-file', '-c', dest='config_file', type=file,
                        help='Configuration file. For more details on format see https://github.com/kovpas/itc.cli')
 
-    parser.add_argument('--application-version', '-e', dest='application_version', metavar="VERSION", default=None,
+    parser.add_argument('--application-version', '-e', dest='application_version', metavar='VERSION', default=None,
                        help='Application version to generate config. \
                        If not provided, config will be generated for latest version')
     parser.add_argument('--application-id', '-a', dest='application_id', type=int,
-                       help='Application id to process. If --config-file provided and it contains "application id", \
+                       help='Application id to process. If --config-file provided and it contains \'application id\', \
                        this property is be ignored')
 
 
     args = parser.parse_args(args)
-    globals()["options"] = args
+    globals()['options'] = args
 
     if args.debug == True:
         logging.basicConfig(level=logging.DEBUG)
     else:
-        requests_log = logging.getLogger("requests")
+        requests_log = logging.getLogger('requests')
         requests_log.setLevel(logging.WARNING)
         
         logging.basicConfig(level=logging.INFO)
 
     return args
 
-
-def dict_merge(a, b):
-    '''recursively merges dict's. not just simple a['key'] = b['key'], if
-    both a and b have a key who's value is a dict then dict_merge is called
-    on both values and the result stored in the returned dictionary.'''
-    if not isinstance(b, dict):
-        return b
-    result = deepcopy(a)
-    for k, v in b.iteritems():
-        if k in result and isinstance(result[k], dict):
-                result[k] = dict_merge(result[k], v)
-        else:
-            result[k] = deepcopy(v)
-    return result
-
-def parse_configuration_file():
+def __parse_configuration_file():
     if options.config_file != None:
         globals()['config'] = json.load(options.config_file)
 
@@ -80,35 +61,30 @@ def parse_configuration_file():
 
 def main():
     os.umask(0077)
-    scriptDir = os.path.dirname(os.path.realpath(__file__))
+    if not os.path.exists(temp_dir):
+        os.mkdir(temp_dir);
 
-    # Load the config and cookie files
-    cookie_file = os.path.join(scriptDir, ".itc-cli-cookies.txt")
-    storage_file = os.path.join(scriptDir, ".itc-cli-storage.txt")
-
-    args = parse_options(sys.argv[1:])
+    args = __parse_options(sys.argv[1:])
     
     logging.debug('Python %s' % sys.version)
-    logging.debug('Running on %s' % (platform.platform()))
-    logging.debug('Script path = %s' % scriptDir)
+    logging.debug('Running on %s' % platform.platform())
+    logging.debug('Temp path = %s' % temp_dir)
     logging.debug('Current Directory = %s' % os.getcwd())
 
     logging.debug('args %s' % args)
 
-    logging.debug(languages.langs())
-
     if options.username == None:
         options.username = raw_input('Username: ')
 
-    server = ITCServer(options, cookie_file, storage_file)
+    server = ITCServer(options.username, options.password)
 
     if not server.isLoggedIn:
         if options.password == None:
             options.password = getpass.getpass()
-        server.login()
+        server.login(password=options.password)
 
     if len(server.applications) == 0:
-        server.getApplicationsList()
+        server.fetchApplicationsList()
 
     if len(server.applications) == 0:
         logging.info('No applications found.')
@@ -128,7 +104,7 @@ def main():
 
         return
 
-    cfg = parse_configuration_file()
+    cfg = __parse_configuration_file()
     if len(cfg) == 0:
         logging.info('Nothing to do.')
         return
@@ -139,9 +115,9 @@ def main():
     commonActions = applicationDict['metadata'].get('general', {})
     specificLangCommands = applicationDict['metadata']['languages']
     langActions = {}
-    filename_format = cfg.get('config', {}) \
-                           .get('images', {}) \
-                              .get('filename format', 'images/{language}/{device_type} {index}.png')
+    # filename_format = cfg.get('config', {}) \
+    #                        .get('images', {}) \
+    #                           .get('filename format', default_file_format)
 
     for lang in specificLangCommands:
         langActions[languages.languageNameForId(lang)] = dict_merge(commonActions, specificLangCommands[lang])
@@ -160,7 +136,7 @@ def main():
             iteratorDict = inappDict.get('index iterator')
 
             if isIterable and (iteratorDict == None):
-                logging.error('Inapp id contains {index} keyword, but no index_iterator object found.')
+                logging.error('Inapp id contains {index} keyword, but no index_iterator object found. Skipping inapp: ' + inappDict['id'])
                 continue
 
             langsDict = inappDict['languages']
@@ -178,22 +154,17 @@ def main():
                     indexes = range(iteratorDict.get('from', 1), iteratorDict['to'] + 1)
 
             for index in indexes:
-                inappIndexDict = copy.deepcopy(inappDict)
+                inappIndexDict = deepcopy(inappDict)
                 if isIterable:
                     for key in inappIndexDict:
                         if (type(inappIndexDict[key]) is str) or (type(inappIndexDict[key]) is unicode):
-                            inappIndexDict[key] = inappIndexDict[key].replace("{index}", str(index))
+                            inappIndexDict[key] = inappIndexDict[key].replace('{index}', str(index))
                     langsDict = inappDict['languages']
-                    print
-                    print
-                    print(inappIndexDict)
-                    print
-                    print
 
                     for langId, langDict in langsDict.items():
                         for langKey in langDict:
                             if type(langDict[langKey]) is str:
-                                langDict[langKey] = langDict[langKey].replace("{index}", index)
+                                langDict[langKey] = langDict[langKey].replace('{index}', index)
 
                 inapp = application.getInappById(inappIndexDict['id'])
                 if inapp == None:
@@ -201,7 +172,3 @@ def main():
                 else:
                     inapp.update(inappIndexDict)
 
-
-
-if __name__ == "__main__":
-    main()

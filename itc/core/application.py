@@ -1,43 +1,22 @@
 # coding=utf-8
 
 import os
-import sys
 import re
-import urllib2
 import json
 import logging
-import languages
 from collections import namedtuple
 
 import requests
-from lxml import etree
-from lxml.html import tostring
-import html5lib
-from inapp import ITCInappPurchase 
 
-ITUNESCONNECT_URL = 'https://itunesconnect.apple.com'
-
-class DEVICE_TYPE:
-    iPad = 0
-    iPhone = 1
-    iPhone5 = 2
-    deviceStrings = ["iPad", "iPhone", "iPhone 5"]
-
-class EnhancedFile(file):
-    def __init__(self, *args, **keyws):
-        file.__init__(self, *args, **keyws)
-
-    def __len__(self):
-        return int(os.fstat(self.fileno())[6])
-
-def getElement(list, index):
-    try:
-        return list[index]
-    except Exception:
-        return ""
+from itc.core.inapp import ITCInappPurchase
+from itc.parsers.applicationparser import ITCApplicationParser
+from itc.util import languages
+from itc.util import getElement
+from itc.util import EnhancedFile
+from itc.conf import *
 
 class ITCApplication(object):
-    def __init__(self, name=None, applicationId=None, link=None, dict=None, cookie_jar=None):
+    def __init__(self, name=None, applicationId=None, link=None, dict=None):
         if (dict):
             name = dict['name']
             link = dict['applicationLink']
@@ -55,8 +34,7 @@ class ITCApplication(object):
         self._manageInappsTree = None
         self._createInappLink = None
         self._inappActionURLs = None
-
-        self._cookie_jar = cookie_jar
+        self._parser = ITCApplicationParser()
 
         logging.info('Application found: ' + self.__str__())
 
@@ -71,8 +49,6 @@ class ITCApplication(object):
             strng += "\"" + self.name + "\""
         if self.applicationId != None:
             strng += " (" + str(self.applicationId) + ")"
-        # if self.applicationLink != None:
-        #     strng += ": " + self.applicationLink
 
         return strng
 
@@ -81,13 +57,7 @@ class ITCApplication(object):
         if self.applicationLink == None:
             raise 'Can\'t get application versions'
 
-        appVersionsResponse = requests.get(ITUNESCONNECT_URL + self.applicationLink, cookies = self._cookie_jar)
-
-        if appVersionsResponse.status_code != 200:
-            raise 'Can\'t get application versions'
-
-        parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder("lxml"), namespaceHTMLElements=False)
-        tree = parser.parse(appVersionsResponse.text)
+        tree = self._parser.parseTreeForURL(self.applicationLink)
 
         # get 'manage in-app purchases' link
         self._manageInappsLink = tree.xpath("//ul[@id='availableButtons']/li/a/span[starts-with(@class, 'in-app')]/../@href")[0]
@@ -130,7 +100,7 @@ class ITCApplication(object):
 
         if statusURL:
             status = requests.get(ITUNESCONNECT_URL + statusURL
-                                  , cookies=self._cookie_jar)
+                                  , cookies=cookie_jar)
             statusJSON = json.loads(status.content)
             logging.debug(status.content)
             result = []
@@ -164,7 +134,7 @@ class ITCApplication(object):
                         , 'Content-Type': 'image/png'}
             logging.info('Uploading image ' + file_path)
             r = requests.post(ITUNESCONNECT_URL + uploadScreenshotAction
-                                , cookies=self._cookie_jar
+                                , cookies=cookie_jar
                                 , headers=headers
                                 , data=EnhancedFile(file_path, 'rb'))
 
@@ -182,8 +152,8 @@ class ITCApplication(object):
 
         deleteScreenshotAction = self._uploadSessionData[type]['deleteURL']
         if deleteScreenshotAction != None:
-            r = requests.get(ITUNESCONNECT_URL + deleteScreenshotAction + "?pictureId=" + screenshot_id
-                    , cookies=self._cookie_jar)
+            requests.get(ITUNESCONNECT_URL + deleteScreenshotAction + "?pictureId=" + screenshot_id
+                    , cookies=cookie_jar)
 
             # TODO: check status
 
@@ -195,25 +165,20 @@ class ITCApplication(object):
         sortScreenshotsAction = self._uploadSessionData[type]['sortURL']
 
         if sortScreenshotsAction != None:
-            r = requests.get(ITUNESCONNECT_URL + sortScreenshotsAction 
+            requests.get(ITUNESCONNECT_URL + sortScreenshotsAction 
                                     + "?sortedIDs=" + (",".join(newScreenshotsIndexes))
-                            , cookies=self._cookie_jar)
+                            , cookies=cookie_jar)
 
             # TODO: check status
 
     def __parseAppVersionMetadata(self, version, language=None):
-        appVersionResponse = requests.get(ITUNESCONNECT_URL + version['detailsLink'], cookies = self._cookie_jar)
-
-        if appVersionResponse.status_code != 200:
-            raise 'Wrong response from iTunesConnect. Status code: ' + str(appVersionResponse.status_code)
+        tree = self._parser.parseTreeForURL(version['detailsLink'])
 
         AppMetadata = namedtuple('AppMetadata', ['activatedLanguages', 'nonactivatedLanguages'
                                                 , 'formData', 'formNames', 'submitActions'])
 
-        parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder("lxml"), namespaceHTMLElements=False)
-        tree = parser.parse(appVersionResponse.text)
         localizationLightboxAction = tree.xpath("//div[@id='localizationLightbox']/@action")[0] # if no lang provided, edit default
-        localizationLightboxUpdateAction = tree.xpath("//span[@id='localizationLightboxUpdate']/@action")[0] 
+        #localizationLightboxUpdateAction = tree.xpath("//span[@id='localizationLightboxUpdate']/@action")[0] 
 
         activatedLanguages    = tree.xpath('//div[@id="modules-dropdown"] \
                                     /ul/li[count(preceding-sibling::li[@class="heading"])=1]/a/text()')
@@ -237,7 +202,6 @@ class ITCApplication(object):
 
         for lang in langs:
             logging.info('Processing language: ' + lang)
-            editResponse = None
             languageId = languages.appleLangIdForLanguage(lang)
             logging.debug('Apple language id: ' + languageId)
 
@@ -246,17 +210,8 @@ class ITCApplication(object):
             elif lang in nonactivatedLanguages:
                 logging.info('Add ' + lang + ' for version ' + versionString)
 
-            editResponse = requests.get(ITUNESCONNECT_URL + localizationLightboxAction + "?open=true" 
-                                               + ("&language=" + languageId if (languageId != None) else "")
-                                       , cookies = self._cookie_jar)
-
-            if editResponse == None:
-                raise 'Wrong language passed (' + lang + '). Please check languages.json for a list of language codes'
-
-            if editResponse.status_code != 200:
-                raise 'Wrong response from iTunesConnect. Status code: ' + str(editResponse.status_code)
-
-            editTree = parser.parse(editResponse.text)
+            editTree = self._parser.parseTreeForURL(localizationLightboxAction + "?open=true" 
+                                                        + ("&language=" + languageId if (languageId != None) else ""))
             hasWhatsNew = False
 
             formDataForLang = {}
@@ -318,7 +273,7 @@ class ITCApplication(object):
 
         metadata = self.__parseAppVersionMetadata(version)
         formData = metadata.formData
-        activatedLanguages = metadata.activatedLanguages
+        # activatedLanguages = metadata.activatedLanguages
 
         for languageId, formValuesForLang in formData.items():
             langCode = languages.langCodeForLanguage(languageId)
@@ -371,8 +326,8 @@ class ITCApplication(object):
         languageId = languages.appleLangIdForLanguage(lang)
 
         metadata = self.__parseAppVersionMetadata(version, lang)
-        activatedLanguages = metadata.activatedLanguages
-        nonactivatedLanguages = metadata.nonactivatedLanguages
+        # activatedLanguages = metadata.activatedLanguages
+        # nonactivatedLanguages = metadata.nonactivatedLanguages
         formData = metadata.formData[languageId]
         formNames = metadata.formNames[languageId]
         submitAction = metadata.submitActions[languageId]
@@ -513,7 +468,7 @@ class ITCApplication(object):
         formData['uploadSessionID'] = self._uploadSessionId
         # formData['uploadKey'] = self._uploadSessionData[DEVICE_TYPE.iPhone5]['key']
 
-        postFormResponse = requests.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies = self._cookie_jar)
+        postFormResponse = requests.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies=cookie_jar)
 
         if postFormResponse.status_code != 200:
             raise 'Wrong response from iTunesConnect. Status code: ' + str(postFormResponse.status_code)
@@ -561,7 +516,7 @@ class ITCApplication(object):
             name = inappUL.xpath('./div/div/span/text()')[0].strip()
             productId = inappUL.xpath('./div/div[3]/text()')[0].strip()
             manageLink = inappsItemAction + "?itemID=" + numericId
-            inapps[appleId] = ITCInappPurchase(name=name, appleId=appleId, numericId=numericId, productId=productId, iaptype=iaptype, manageLink=manageLink, cookie_jar=self._cookie_jar)
+            inapps[appleId] = ITCInappPurchase(name=name, appleId=appleId, numericId=numericId, productId=productId, iaptype=iaptype, manageLink=manageLink)
 
         return inapps
 
@@ -573,14 +528,7 @@ class ITCApplication(object):
             raise 'Can\'t get "Manage In-App purchases link :(("'
 
         # TODO: parse multiple pages of inapps.
-
-        manageInappsResponse = requests.get(ITUNESCONNECT_URL + self._manageInappsLink, cookies = self._cookie_jar)
-
-        if manageInappsResponse.status_code != 200:
-            raise 'Wrong response from iTunesConnect. Status code: ' + str(manageInappsResponse.status_code)
-
-        parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder("lxml"), namespaceHTMLElements=False)
-        tree = parser.parse(manageInappsResponse.text)
+        tree = self._parser.parseTreeForURL(self._manageInappsLink)
 
         self._createInappLink = tree.xpath('//img[contains(@src, "btn-create-new-in-app-purchase.png")]/../@href')[0]
         if ITCInappPurchase.createInappLink == None:
@@ -600,15 +548,8 @@ class ITCApplication(object):
         if self.inapps.get(inappId) != None:
             return self.inapps[inappId]
 
-        parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder("lxml"), namespaceHTMLElements=False)
-
         if self._manageInappsTree == None:
-            manageInappsResponse = requests.get(ITUNESCONNECT_URL + self._manageInappsLink, cookies = self._cookie_jar)
-
-            if manageInappsResponse.status_code != 200:
-                raise 'Wrong response from iTunesConnect. Status code: ' + str(manageInappsResponse.status_code)
-
-            self._manageInappsTree = parser.parse(manageInappsResponse.text)
+            self._manageInappsTree = self._parser.parseTreeForURL(self._manageInappsLink)
 
         tree = self._manageInappsTree
         reloadInappsAction = tree.xpath('//span[@id="ajaxListListRefreshContainerId"]/@action')[0]
@@ -616,7 +557,7 @@ class ITCApplication(object):
 
         logging.info('Searching for inapp with id ' + inappId)
 
-        searchResponse = requests.get(ITUNESCONNECT_URL + searchAction + "?query=" + inappId, cookies = self._cookie_jar)
+        searchResponse = requests.get(ITUNESCONNECT_URL + searchAction + "?query=" + inappId, cookies=cookie_jar)
 
         if searchResponse.status_code != 200:
             raise 'Wrong response from iTunesConnect. Status code: ' + str(searchResponse.status_code)
@@ -626,12 +567,7 @@ class ITCApplication(object):
             logging.warn('No matching inapps found! Search term: ' + inappId)
             return None
 
-        searchResponse = requests.get(ITUNESCONNECT_URL + reloadInappsAction, cookies = self._cookie_jar)
-
-        if searchResponse.status_code != 200:
-            raise 'Wrong response from iTunesConnect. Status code: ' + str(searchResponse.status_code)
-
-        inapps = self.__parseInappsFromTree(parser.parse(searchResponse.text))
+        inapps = self.__parseInappsFromTree(self._parser.parseTreeForURL(reloadInappsAction))
 
         if inapps == None:
             raise "Error parsing inapps"
@@ -641,7 +577,6 @@ class ITCApplication(object):
 
         tmpinapps = []
         for numericId, inapp in inapps.items():
-            print inapp.numericId
             if (inapp.numericId == inappId) or (inapp.productId == inappId):
                 return inapp
 
@@ -661,7 +596,6 @@ class ITCApplication(object):
         raise 'Ambiguous search result.'
 
 
-
     def createInapp(self, inappDict):
         if self._createInappLink == None:
             self.getInapps()
@@ -674,8 +608,7 @@ class ITCApplication(object):
 
         iap = ITCInappPurchase(name=inappDict['reference name']
                              , productId=inappDict['id']
-                             , iaptype=inappDict['type']
-                             , cookie_jar=self._cookie_jar)
+                             , iaptype=inappDict['type'])
         iap.clearedForSale = inappDict['cleared']
         iap.priceTier = int(inappDict['price tier']) - 1
         iap.hostingContentWithApple = inappDict['hosting content with apple']

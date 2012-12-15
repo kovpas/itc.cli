@@ -176,7 +176,7 @@ In the example above, all iPad and pt/iPhone 5 screenshots will be uploaded by g
 In-App purchases
 =======
 
-At the moment, only 4 of 5 inapp types are supported: 'Consumable', 'Non-Consumable', 'Free Subscription', 'Non-Renewing Subscription'
+At the moment, 4 of 5 inapp types are supported: 'Consumable', 'Non-Consumable', 'Free Subscription', 'Non-Renewing Subscription'
 
 There are two ways of managing inapps. The first one is one by one:
 

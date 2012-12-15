@@ -29,7 +29,7 @@ Usage
 
 If all dependencies installed properly, you will see something like this:
 
-````itc.cli.git kovpas$ ./itc/bin/itc --username apple_id````  
+```` ./itc/bin/itc --username apple_id````  
 > Password:  
 INFO:root:Login: logged in. Session cookies are saved to .itc-cli-cookies.txt  
 INFO:root:Application found: "App 1" (123456789)  

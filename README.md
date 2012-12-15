@@ -23,13 +23,13 @@ Dependencies: [lxml](http://lxml.de/installation.html), [html5lib](http://code.g
 Usage
 =======
 
-```` ./itc.py --username apple_id --password my_password````
+```` ./itc/bin/itc --username apple_id --password my_password````
 
 ````--password```` parameter is not mandatory, so you can input password manually after script startup
 
 If all dependencies installed properly, you will see something like this:
 
-````itc.cli.git kovpas$ ./itc.py --username apple_id````  
+````itc.cli.git kovpas$ ./itc/bin/itc --username apple_id````  
 > Password:  
 INFO:root:Login: logged in. Session cookies are saved to .itc-cli-cookies.txt  
 INFO:root:Application found: "App 1" (123456789)  
@@ -40,7 +40,7 @@ Every time you run the script, it uses cookies which are stored in the file ````
 
 Party begins with ````--config_file```` parameter:
 
-````./itc.py --username apple_id --config-file actions.json````
+````./itc/bin/itc --username apple_id --config-file actions.json````
 
 Config file format
 =======

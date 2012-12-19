@@ -19,13 +19,13 @@ itc.cli is available under the MIT license.
 Installation
 =======
 
-Automatic
--------
+### Automatic
+
 * Download sources somewhere on your computer
 * ````sudo python setup.py install````
 
-Manual
--------
+### Manual
+
 * Download sources somewhere on your computer
 * Install dependencies: [lxml](http://lxml.de/installation.html), [html5lib](http://code.google.com/p/html5lib/wiki/UserDocumentation), [requests](http://docs.python-requests.org/en/latest/user/install/)
 * ````export PYTHONPATH=${PYTHONPATH}:/path/to/itc.cli/source/directory````

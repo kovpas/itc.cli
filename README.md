@@ -22,7 +22,7 @@ Installation
 Automatic
 -------
 * Download sources somewhere on your computer
-* sudo python setup.py install
+* ````sudo python setup.py install````
 
 Manual
 -------

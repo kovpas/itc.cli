@@ -9,9 +9,8 @@ iTunesConnect command line interface **β**
 
 Script allows to add/edit metadata, uploads and in-app purchases of the application through iTunesConnect without user interaction.
 
-Have you ever had to create 1000 inapp purchases by template? Or may be upload 15 localized screenshots for each of 25 languages you app supports? This script does that for you :)
-
-<small>This is my first ever application written in python, so, please don't judge me too harshly ;)</small>
+Have you ever had to create 1000 inapp purchases by template? Or may be upload 15 localized screenshots for each of 25 languages you app supports? This script does that for you :)  
+<sub>This is my first ever application written in python, so, please don't judge me too harshly ;)</sub>
 
 License
 =======
@@ -23,7 +22,7 @@ Installation
 Automatic
 -------
 * Download sources somewhere on your computer
-* sudo python setup.py install
+* ````sudo python setup.py install````
 
 Manual
 -------

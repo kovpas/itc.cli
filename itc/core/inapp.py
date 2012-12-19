@@ -3,7 +3,8 @@ import logging
 
 import requests
 
-from itc.parsers import htmlParser as parser
+from itc.parsers.inappparser import ITCInappParser
+from itc.util import EnhancedFile
 from itc.util import languages
 from itc.conf import *
 
@@ -22,6 +23,7 @@ class ITCInappPurchase(object):
         self.clearedForSale = False
         self.hostingContentWithApple = False
         self.manageLink = manageLink
+        self._parser = ITCInappParser()
 
         logging.info('Inapp found: ' + self.__str__())
         logging.debug('productId: ' + (self.productId if self.productId != None else ""))
@@ -41,6 +43,29 @@ class ITCInappPurchase(object):
             strng += " (" + str(self.appleId) + ")"
 
         return strng
+
+    def __uploadScreenshot(self, file_path):
+        if self._uploadScreenshotAction == None or self._uploadScreenshotKey == None:
+            raise 'Trying to upload screenshot without proper session keys'
+
+        if os.path.exists(file_path):
+            headers = { 'x-uploadKey' : self._uploadScreenshotKey
+                        , 'x-uploadSessionID' : self._uploadSessionId
+                        , 'x-original-filename' : os.path.basename(file_path)
+                        , 'Content-Type': 'image/png'}
+            logging.info('Uploading image ' + file_path)
+            r = requests.post(ITUNESCONNECT_URL + self._uploadScreenshotAction
+                                , cookies=cookie_jar
+                                , headers=headers
+                                , data=EnhancedFile(file_path, 'rb'))
+
+            if r.content == 'success':
+                # newImages = self.__imagesForDevice(upload_type)
+                # if len(newImages) > len(self._images[upload_type]):
+                #     logging.info('Image uploaded')
+                # else:
+                #     logging.error('Upload failed: ' + file_path)
+                pass
 
     def __createUpdateLanguage(self, localizationTree, langId, langVal, isEdit=False):
         langName = languages.languageNameForId(langId)
@@ -67,7 +92,7 @@ class ITCInappPurchase(object):
         langFormData[nameElementName] = langVal['name']
         langFormData[descriptionElementName] = langVal['description']
         langFormData['save'] = "true"
-        
+
         postFormResponse = requests.post(ITUNESCONNECT_URL + localizationSaveAction, data = langFormData, cookies=cookie_jar)
 
         if postFormResponse.status_code != 200:
@@ -78,12 +103,7 @@ class ITCInappPurchase(object):
 
 
     def update(self, inappDict):
-        createInappsResponse = requests.get(ITUNESCONNECT_URL + ITCInappPurchase.actionURLs['itemActionUrl'] + "?itemID=" + self.numericId, cookies=cookie_jar)
-
-        if createInappsResponse.status_code != 200:
-            raise 'Wrong response from iTunesConnect. Status code: ' + str(createInappsResponse.status_code)
-
-        tree = parser.parse(createInappsResponse.text)
+        tree = self._parser.parseTreeForURL(ITCInappPurchase.actionURLs['itemActionUrl'] + "?itemID=" + self.numericId)
 
         # for non-consumable iap we can change name, cleared-for-sale and pricing. Check if we need to:
         inappReferenceName = tree.xpath('//span[@id="iapReferenceNameUpdateContainer"]//span/text()')[0]
@@ -96,17 +116,15 @@ class ITCInappPurchase(object):
 
         self.name = inappDict.get('name', self.name)
         self.clearedForSale = inappDict.get('cleared', self.clearedForSale)
+        self.hostingContentWithApple = inappDict.get('hosting content with apple', self.hostingContentWithApple)
+        self.reviewNotes = inappDict.get('review notes', self.reviewNotes)
 
         # TODO: change price tier
-        if (inappReferenceName != self.name) or (clearedForSale != self.clearedForSale):
+        if (inappReferenceName != self.name) \
+            or (clearedForSale != self.clearedForSale):
             editAction = tree.xpath('//div[@id="singleAddonPricingLightbox"]/@action')[0]
 
-            editInappsResponse = requests.get(ITUNESCONNECT_URL + editAction, cookies=cookie_jar)
-
-            if editInappsResponse.status_code != 200:
-                raise 'Wrong response from iTunesConnect. Status code: ' + str(editInappsResponse.status_code)
-
-            inappTree = parser.parse(editInappsResponse.text)
+            inappTree = self._parser.parseTreeForURL(editAction)
 
             inappReferenceNameName = inappTree.xpath('//div[@id="referenceNameTooltipId"]/..//input/@name')[0]
             clearedForSaleName = inappTree.xpath('//div[contains(@class,"cleared-for-sale")]//input[@classname="radioTrue"]/@name')[0]
@@ -145,7 +163,7 @@ class ITCInappPurchase(object):
         langDict = inappDict.get('languages', {})
         for langId, langVal in langDict.items():
             if type(langVal) is str:
-                if langId in activatedLangsIds and langVal == 'd': # delete lang
+                if langId in activatedLangsIds and langVal == 'd': # TODO: delete lang
                     pass
                 return
             
@@ -156,35 +174,54 @@ class ITCInappPurchase(object):
                 languageParamStr = "&itemID=" + languages.appleLangIdForLanguage(langId)
                 isEdit = True
 
-            editInappLocalizationResponse = requests.get(ITUNESCONNECT_URL + languageAction + "?open=true" + languageParamStr, cookies=cookie_jar)
-            if editInappLocalizationResponse.status_code != 200:
-                raise 'Wrong response from iTunesConnect. Status code: ' + str(editInappLocalizationResponse.status_code)
-
-            localizationTree = parser.parse(editInappLocalizationResponse.text)
-
+            localizationTree = self._parser.parseTreeForURL(languageAction + "?open=true" + languageParamStr)
             self.__createUpdateLanguage(localizationTree, langId, langVal, isEdit=isEdit)
 
+        # upload screenshot, edit review notes, hosting content with apple, etc
+        formData = {"save":"true"}
+        editHostedContentAction = tree.xpath('//div[@id="versionLightboxId0"]/@action')[0]
+        hostedContentTree = self._parser.parseTreeForURL(editHostedContentAction + "?open=true")
+        saveEditHostedContentAction = hostedContentTree.xpath('//div[@class="lcAjaxLightboxContents"]/@action')[0]
 
-    def create(self, langDict):
-        createInappsResponse = requests.get(ITUNESCONNECT_URL + ITCInappPurchase.createInappLink, cookies=cookie_jar)
+        if (self.type == "Non-Consumable"):
+            hostingContentName = hostedContentTree.xpath('//div[contains(@class,"hosting-on-apple")]//input[@classname="radioTrue"]/@name')[0]
+            hostingContentNames = {}
+            hostingContentNames["true"] = hostedContentTree.xpath('//div[contains(@class,"hosting-on-apple")]//input[@classname="radioTrue"]/@value')[0]
+            hostingContentNames["false"] = hostedContentTree.xpath('//div[contains(@class,"hosting-on-apple")]//input[@classname="radioFalse"]/@value')[0]
+            formData[hostingContentName] = hostingContentNames["true" if self.hostingContentWithApple else "false"]
 
-        if createInappsResponse.status_code != 200:
-            raise 'Wrong response from iTunesConnect. Status code: ' + str(createInappsResponse.status_code)
+        if inappDict['review screenshot'] != None:
+            uploadForm = hostedContentTree.xpath('//form[@name="FileUploadForm__screenshotId"]')[0]
+            self._uploadScreenshotAction = uploadForm.xpath('./@action')[0]
+            self._uploadSessionId = uploadForm.xpath('.//input[@id="uploadSessionID"]/@value')[0]
+            self._uploadScreenshotKey = uploadForm.xpath('.//input[@id="uploadKey"]/@value')[0]
+            statusURLScript = hostedContentTree.xpath('//script[contains(., "var uploader_screenshotId")]/text()')[0]
+            matches = re.findall('statusURL:\s\'([^\']+)\'', statusURLScript)
+            self._statusURL = matches[0]
+            self.__uploadScreenshot(inappDict['review screenshot'])
+            requests.get(ITUNESCONNECT_URL + self._statusURL, cookies=cookie_jar)
 
+            formData["uploadSessionID"] = self._uploadSessionId
+            formData["uploadKey"] = self._uploadScreenshotKey
+            formData["filename"] = inappDict['review screenshot']
+
+ 
+        reviewNotesName = hostedContentTree.xpath('//div[@class="hosted-review-notes"]//textarea/@name')[0]
+        formData[reviewNotesName] = self.reviewNotes
+        self._parser.parseTreeForURL(saveEditHostedContentAction, method="POST", payload=formData)
+
+
+    def create(self, langDict, screenshot=None):
         logging.debug('Creating inapp: ' + langDict.__str__())
 
-        tree = parser.parse(createInappsResponse.text)
+        tree = self._parser.parseTreeForURL(ITCInappPurchase.createInappLink)
 
         inapptype = self.type
         newInappLink = tree.xpath('//form[@name="mainForm"]/@action')[0]
         formKeyName = tree.xpath('//div[@class="type-section"]/h3[.="' + inapptype + '"]/following-sibling::input/@name')[0]
         
         formData = {formKeyName + '.x': 46, formKeyName + '.y': 10}
-        createInappResponse = requests.post(ITUNESCONNECT_URL + newInappLink, data=formData, cookies=cookie_jar)
-        inappTree = parser.parse(createInappResponse.text)
-
-        if createInappResponse.status_code != 200:
-            raise 'Wrong response from iTunesConnect. Status code: ' + str(createInappResponse.status_code)
+        inappTree = self._parser.parseTreeForURL(newInappLink, method="POST", payload=formData)
 
         if ITCInappPurchase.actionURLs == None:
             inappsActionScript = inappTree.xpath('//script[contains(., "var arguments")]/text()')[0]
@@ -219,13 +256,24 @@ class ITCInappPurchase(object):
             localizationLightboxAction = inappTree.xpath('//div[@id="localizationListLightbox"]/@action')[0]
 
         for langId, langVal in langDict.items():
-            createInappLocalizationResponse = requests.get(ITUNESCONNECT_URL + localizationLightboxAction + "?open=true", cookies=cookie_jar)
-            if createInappResponse.status_code != 200:
-                raise 'Wrong response from iTunesConnect. Status code: ' + str(createInappResponse.status_code)
-
-            localizationTree = parser.parse(createInappLocalizationResponse.text)
+            localizationTree = self._parser.parseTreeForURL(localizationLightboxAction + "?open=true")
 
             self.__createUpdateLanguage(localizationTree, langId, langVal)
+
+        if screenshot != None:
+            uploadForm = inappTree.xpath('//form[@name="FileUploadForm__screenshotId"]')[0]
+            self._uploadScreenshotAction = uploadForm.xpath('./@action')[0]
+            self._uploadSessionId = uploadForm.xpath('.//input[@id="uploadSessionID"]/@value')[0]
+            self._uploadScreenshotKey = uploadForm.xpath('.//input[@id="uploadKey"]/@value')[0]
+            statusURLScript = inappTree.xpath('//script[contains(., "var uploader_screenshotId")]/text()')[0]
+            matches = re.findall('statusURL:\s\'([^\']+)\'', statusURLScript)
+            self._statusURL = matches[0]
+            self.__uploadScreenshot(screenshot)
+            requests.get(ITUNESCONNECT_URL + self._statusURL, cookies=cookie_jar)
+
+            formData["uploadSessionID"] = self._uploadSessionId
+            formData["uploadKey"] = self._uploadScreenshotKey
+            formData["filename"] = screenshot
 
         postAction = inappTree.xpath('//form[@id="addInitForm"]/@action')[0]
 
@@ -234,13 +282,8 @@ class ITCInappPurchase(object):
         formData[clearedForSaleName] = clearedForSaleNames["true" if self.clearedForSale else "false"]
         formData[reviewNotesName] = self.reviewNotes
 
-        postFormResponse = requests.post(ITUNESCONNECT_URL + postAction, data = formData, cookies=cookie_jar)
-
-        if postFormResponse.status_code != 200:
-            raise 'Wrong response from iTunesConnect. Status code: ' + str(postFormResponse.status_code)
-
-        createInappResponse = requests.post(ITUNESCONNECT_URL + newInappLink, data=formData, cookies=cookie_jar)
-        postFormTree = parser.parse(postFormResponse.text)
+        self._parser.parseTreeForURL(postAction, method="POST", payload=formData)
+        postFormTree = self._parser.parseTreeForURL(newInappLink, method="POST", payload=formData)
         errorDiv = postFormTree.xpath('//div[@id="LCPurpleSoftwarePageWrapperErrorMessage"]')
 
         if len(errorDiv) > 0:

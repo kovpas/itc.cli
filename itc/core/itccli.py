@@ -159,12 +159,12 @@ def main():
                     for key in inappIndexDict:
                         if (type(inappIndexDict[key]) is str) or (type(inappIndexDict[key]) is unicode):
                             inappIndexDict[key] = inappIndexDict[key].replace('{index}', str(index))
-                    langsDict = inappDict['languages']
+                    langsDict = inappIndexDict['languages']
 
                     for langId, langDict in langsDict.items():
                         for langKey in langDict:
-                            if type(langDict[langKey]) is str:
-                                langDict[langKey] = langDict[langKey].replace('{index}', index)
+                            if (type(langDict[langKey]) is str) or (type(langDict[langKey]) is unicode):
+                                langDict[langKey] = langDict[langKey].replace('{index}', str(index))
 
                 inapp = application.getInappById(inappIndexDict['id'])
                 if inapp == None:

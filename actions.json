@@ -45,8 +45,8 @@
         "inapps": [
             {
                 "index iterator": {
-                    "from": 7,
-                    "to": 9
+                    "from": 17,
+                    "to": 17
                 },
                 "id": "ru.kovpas.itc.cli.test.1.inapp.{index}",
                 "type": "Non-Consumable",
@@ -54,7 +54,8 @@
                 "price tier": 2,
                 "cleared": false,
                 "hosting content with apple": false,
-                "review notes": "Notes",
+                "review notes": "NotesNOTES",
+                "review screenshot": "images/inapp.png",
                 "general": {
                     "name": "Test inapp - {index}",
                     "description": "Description inapp - {index}",

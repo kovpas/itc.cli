@@ -4,14 +4,12 @@ import os
 import re
 import json
 import logging
-from collections import namedtuple
 
 import requests
 
 from itc.core.inapp import ITCInappPurchase
 from itc.parsers.applicationparser import ITCApplicationParser
 from itc.util import languages
-from itc.util import getElement
 from itc.util import EnhancedFile
 from itc.conf import *
 
@@ -58,32 +56,10 @@ class ITCApplication(object):
             raise 'Can\'t get application versions'
 
         tree = self._parser.parseTreeForURL(self.applicationLink)
-
+        versionsMetadata = self._parser.parseAppVersionsPage(tree)
         # get 'manage in-app purchases' link
-        self._manageInappsLink = tree.xpath("//ul[@id='availableButtons']/li/a/span[starts-with(@class, 'in-app')]/../@href")[0]
-        logging.debug("Manage In-App purchases link: " + self._manageInappsLink)
-
-        versionsContainer = tree.xpath("//h2[.='Versions']/following-sibling::div")
-        if len(versionsContainer) == 0:
-            return
-
-        versionDivs = versionsContainer[0].xpath(".//div[@class='version-container']")
-        if len(versionDivs) == 0:
-            return
-
-        for versionDiv in versionDivs:
-            version = {}
-            versionString = versionDiv.xpath(".//p/label[.='Version']/../span")[0].text.strip()
-            
-            version['detailsLink'] = versionDiv.xpath(".//span[.='View Details']/..")[0].attrib['href']
-            version['statusString'] = ("".join([str(x) for x in versionDiv.xpath(".//span/img[starts-with(@src, '/itc/images/status-')]/../text()")])).strip()
-            version['editable'] = (version['statusString'] != 'Ready for Sale')
-            version['versionString'] = versionString
-
-            logging.info("Version found: " + versionString)
-            logging.debug(version)
-
-            self.versions[versionString] = version
+        self._manageInappsLink = versionsMetadata.manageInappsLink
+        self.versions = versionsMetadata.versions
 
     def __parseURLSFromScript(self, script):
         matches = re.search('{.*statusURL:\s\'([^\']+)\',\sdeleteURL:\s\'([^\']+)\',\ssortURL:\s\'([^\']+)\'', script) 
@@ -174,98 +150,7 @@ class ITCApplication(object):
     def __parseAppVersionMetadata(self, version, language=None):
         tree = self._parser.parseTreeForURL(version['detailsLink'])
 
-        AppMetadata = namedtuple('AppMetadata', ['activatedLanguages', 'nonactivatedLanguages'
-                                                , 'formData', 'formNames', 'submitActions'])
-
-        localizationLightboxAction = tree.xpath("//div[@id='localizationLightbox']/@action")[0] # if no lang provided, edit default
-        #localizationLightboxUpdateAction = tree.xpath("//span[@id='localizationLightboxUpdate']/@action")[0] 
-
-        activatedLanguages    = tree.xpath('//div[@id="modules-dropdown"] \
-                                    /ul/li[count(preceding-sibling::li[@class="heading"])=1]/a/text()')
-        nonactivatedLanguages = tree.xpath('//div[@id="modules-dropdown"] \
-                                    /ul/li[count(preceding-sibling::li[@class="heading"])=2]/a/text()')
-        
-        activatedLanguages = [lng.replace("(Default)", "").strip() for lng in activatedLanguages]
-
-        logging.info('Activated languages: ' + ', '.join(activatedLanguages))
-        logging.debug('Nonactivated languages: ' + ', '.join(nonactivatedLanguages))
-
-        langs = activatedLanguages
-
-        if language != None:
-            langs = [language]
-
-        formData = {}
-        formNames = {}
-        submitActions = {}
-        versionString = version['versionString']
-
-        for lang in langs:
-            logging.info('Processing language: ' + lang)
-            languageId = languages.appleLangIdForLanguage(lang)
-            logging.debug('Apple language id: ' + languageId)
-
-            if lang in activatedLanguages:
-                logging.info('Getting metadata for ' + lang + '. Version: ' + versionString)
-            elif lang in nonactivatedLanguages:
-                logging.info('Add ' + lang + ' for version ' + versionString)
-
-            editTree = self._parser.parseTreeForURL(localizationLightboxAction + "?open=true" 
-                                                        + ("&language=" + languageId if (languageId != None) else ""))
-            hasWhatsNew = False
-
-            formDataForLang = {}
-            formNamesForLang = {}
-
-            submitActionForLang = editTree.xpath("//div[@class='lcAjaxLightboxContentsWrapper']/div[@class='lcAjaxLightboxContents']/@action")[0]
-
-            formNamesForLang['appNameName'] = editTree.xpath("//div[@id='appNameUpdateContainerId']//input/@name")[0]
-            formNamesForLang['descriptionName'] = editTree.xpath("//div[@id='descriptionUpdateContainerId']//textarea/@name")[0]
-            whatsNewName = editTree.xpath("//div[@id='whatsNewinthisVersionUpdateContainerId']//textarea/@name")
-
-            if len(whatsNewName) > 0: # there's no what's new section for first version
-                hasWhatsNew = True
-                formNamesForLang['whatsNewName'] = whatsNewName[0]
-
-            formNamesForLang['keywordsName']     = editTree.xpath("//div/label[.='Keywords']/..//input/@name")[0]
-            formNamesForLang['supportURLName']   = editTree.xpath("//div/label[.='Support URL']/..//input/@name")[0]
-            formNamesForLang['marketingURLName'] = editTree.xpath("//div/label[contains(., 'Marketing URL')]/..//input/@name")[0]
-            formNamesForLang['pPolicyURLName']   = editTree.xpath("//div/label[contains(., 'Privacy Policy URL')]/..//input/@name")[0]
-
-            formDataForLang['appNameValue']     = editTree.xpath("//div[@id='appNameUpdateContainerId']//input/@value")[0]
-            formDataForLang['descriptionValue'] = getElement(editTree.xpath("//div[@id='descriptionUpdateContainerId']//textarea/text()"), 0)
-            whatsNewValue    = editTree.xpath("//div[@id='whatsNewinthisVersionUpdateContainerId']//textarea/text()")
-
-            if len(whatsNewValue) > 0 and hasWhatsNew:
-                formDataForLang['whatsNewValue'] = getElement(whatsNewValue, 0)
-
-            formDataForLang['keywordsValue']     = getElement(editTree.xpath("//div/label[.='Keywords']/..//input/@value"), 0)
-            formDataForLang['supportURLValue']   = getElement(editTree.xpath("//div/label[.='Support URL']/..//input/@value"), 0)
-            formDataForLang['marketingURLValue'] = getElement(editTree.xpath("//div/label[contains(., 'Marketing URL')]/..//input/@value"), 0)
-            formDataForLang['pPolicyURLValue']   = getElement(editTree.xpath("//div/label[contains(., 'Privacy Policy URL')]/..//input/@value"), 0)
-
-            logging.debug("Old values:")
-            logging.debug(formDataForLang)
-
-            iphoneUploadScreenshotForm = editTree.xpath("//form[@name='FileUploadForm_35InchRetinaDisplayScreenshots']")[0]
-            iphone5UploadScreenshotForm = editTree.xpath("//form[@name='FileUploadForm_iPhone5']")[0]
-            ipadUploadScreenshotForm = editTree.xpath("//form[@name='FileUploadForm_iPadScreenshots']")[0]
-
-            formNamesForLang['iphoneUploadScreenshotForm'] = iphoneUploadScreenshotForm
-            formNamesForLang['iphone5UploadScreenshotForm'] = iphone5UploadScreenshotForm
-            formNamesForLang['ipadUploadScreenshotForm'] = ipadUploadScreenshotForm
-
-            formData[languageId] = formDataForLang
-            formNames[languageId] = formNamesForLang
-            submitActions[languageId] = submitActionForLang
-
-        metadata = AppMetadata(activatedLanguages=activatedLanguages
-                             , nonactivatedLanguages=nonactivatedLanguages
-                             , formData=formData
-                             , formNames=formNames
-                             , submitActions=submitActions)
-
-        return metadata
+        return self._parser.parseCreateOrEditPage(tree, version, language)
 
     def __generateConfigForVersion(self, version):
         filename = str(self.applicationId) + '.json'
@@ -614,5 +499,5 @@ class ITCApplication(object):
         iap.hostingContentWithApple = inappDict['hosting content with apple']
         iap.reviewNotes = inappDict['review notes']
 
-        iap.create(inappDict['languages'])
+        iap.create(inappDict['languages'], screenshot=inappDict.get('review screenshot'))
 

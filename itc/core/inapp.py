@@ -102,6 +102,9 @@ class ITCInappPurchase(object):
             logging.error("Save information failed. " + postFormResponse.text)
 
 
+    def generateConfig(self):
+        pass
+
     def update(self, inappDict):
         tree = self._parser.parseTreeForURL(ITCInappPurchase.actionURLs['itemActionUrl'] + "?itemID=" + self.numericId)
 

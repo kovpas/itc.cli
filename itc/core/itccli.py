@@ -95,12 +95,21 @@ def main():
     if options.generate_config:
         if options.application_id:
             if options.application_id in server.applications: 
-                server.applications[options.application_id].generateConfig(options.application_version)
+                applications = {}
+                applications[options.application_id] = server.applications[options.application_id]
             else:
                 logging.error('No application with id ' + str(options.application_id))
+                return
         else:
-            for applicationId, application in server.applications.items():
-                application.generateConfig()
+            applications = server.applications
+
+            for applicationId, application in applications.items():
+                    application.generateConfig(options.application_version)
+                    # if options.generate_inapp:
+                    if True:
+                        for inappId, inapp in application.inapps.items():
+                            inapp.generateConfig()
+    
 
         return
 

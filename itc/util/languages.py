@@ -6,11 +6,13 @@ languages_map = {}
 
 def __parse_languages_map():
     try:
-        langs_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'languages.json')
-        logging.debug('Loading languages from ' + langs_file_path)
-        fp = open(langs_file_path)
-        globals()['languages_map'] = json.load(fp)
-        fp.close()
+        try:
+             import pkgutil
+             data = pkgutil.get_data(__name__, 'itc/util/languages.json')
+        except ImportError:
+             import pkg_resources
+             data = pkg_resources.resource_string(__name__, 'itc/util/languages.json')
+        globals()['languages_map'] = json.loads(data)
     except BaseException:
         raise 
 

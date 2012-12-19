@@ -103,7 +103,18 @@ class ITCInappPurchase(object):
 
 
     def generateConfig(self):
-        pass
+        tree = self._parser.parseTreeForURL(ITCInappPurchase.actionURLs['itemActionUrl'] + "?itemID=" + self.numericId)
+        metadata = self._parser.metadataForInappPurchase(tree)
+
+        inappDict = {"id": metadata.numericid, "_id": metadata.textid, "type": self.type
+                    , "reference name": metadata.refname
+                    , "price tier": metadata.price_tier
+                    , "cleared": metadata.cleared
+                    , "hosting content with apple": metadata.hosted
+                    , "review notes": metadata.reviewnotes
+                    , "languages": metadata.languages}
+
+        return inappDict
 
     def update(self, inappDict):
         tree = self._parser.parseTreeForURL(ITCInappPurchase.actionURLs['itemActionUrl'] + "?itemID=" + self.numericId)
@@ -155,10 +166,12 @@ class ITCInappPurchase(object):
             if postFormResponse.status_code != 200:
                 raise 'Wrong response from iTunesConnect. Status code: ' + str(postFormResponse.status_code)
 
-        languagesSpan = tree.xpath('//span[@id="0localizationListListRefreshContainerId"]')[0]
-        activatedLanguages = languagesSpan.xpath('.//li[starts-with(@id, "0localizationListRow")]/div[starts-with(@class, "ajaxListRowDiv")]/@itemid')
+
+        idAddon = "autoRenewableL" if (inapptype == "Free Subscription") else "l"
+        languagesSpan = inappTree.xpath('//span[@id="0' + idAddon + 'ocalizationListListRefreshContainerId"]')[0]
+        activatedLanguages = languagesSpan.xpath('.//li[starts-with(@id, "0' + idAddon + 'ocalizationListRow")]/div[starts-with(@class, "ajaxListRowDiv")]/@itemid')
         activatedLangsIds = [languages.langCodeForLanguage(lang) for lang in activatedLanguages]
-        languageAction = tree.xpath('//div[@id="0localizationListLightbox"]/@action')[0]
+        languageAction = tree.xpath('//div[@id="0' + idAddon + 'ocalizationListLightbox"]/@action')[0]
 
         logging.info('Activated languages for inapp ' + self.numericId + ': ' + ', '.join(activatedLanguages))
         logging.debug('Activated languages ids: ' + ', '.join(activatedLangsIds))

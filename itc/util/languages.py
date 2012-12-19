@@ -1,4 +1,3 @@
-import os
 import json
 import logging
 
@@ -8,10 +7,10 @@ def __parse_languages_map():
     try:
         try:
              import pkgutil
-             data = pkgutil.get_data(__name__, 'itc/util/languages.json')
+             data = pkgutil.get_data(__name__, 'languages.json')
         except ImportError:
              import pkg_resources
-             data = pkg_resources.resource_string(__name__, 'itc/util/languages.json')
+             data = pkg_resources.resource_string(__name__, 'languages.json')
         globals()['languages_map'] = json.loads(data)
     except BaseException:
         raise 

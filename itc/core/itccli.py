@@ -37,6 +37,9 @@ def __parse_options(args):
     parser.add_argument('--application-id', '-a', dest='application_id', type=int,
                        help='Application id to process. If --config-file provided and it contains \'application id\', \
                        this property is be ignored')
+    parser.add_argument('--generate-config-inapp', '-i', dest='generate_inapp', default=False, action='store_true',
+                       help='If this flag passed, inapps will be generated as well. This flag is ignored \
+                        if --generate-config is not provided')
 
 
     args = parser.parse_args(args)
@@ -91,6 +94,7 @@ def main():
         return
         
     logging.debug(server.applications)
+    logging.debug(options)
 
     if options.generate_config:
         if options.application_id:
@@ -103,12 +107,8 @@ def main():
         else:
             applications = server.applications
 
-            for applicationId, application in applications.items():
-                    application.generateConfig(options.application_version)
-                    # if options.generate_inapp:
-                    if True:
-                        for inappId, inapp in application.inapps.items():
-                            inapp.generateConfig()
+        for applicationId, application in applications.items():
+            application.generateConfig(options.application_version, generateInapps=options.generate_inapp)
     
 
         return

@@ -153,7 +153,6 @@ class ITCApplication(object):
         return self._parser.parseCreateOrEditPage(tree, version, language)
 
     def __generateConfigForVersion(self, version):
-        filename = str(self.applicationId) + '.json'
         languagesDict = {}
 
         metadata = self.__parseAppVersionMetadata(version)
@@ -174,11 +173,10 @@ class ITCApplication(object):
             languagesDict[langCode] = resultForLang
 
         resultDict = {'config':{}, 'application': {'id': self.applicationId, 'metadata': {'general': {}, 'languages': languagesDict}}}
-        with open(filename, 'wb') as fp:
-            json.dump(resultDict, fp, sort_keys=True, indent=4, separators=(',', ': '))
 
+        return resultDict
 
-    def generateConfig(self, versionString=None):
+    def generateConfig(self, versionString=None, generateInapps=False):
         if len(self.versions) == 0:
             self.getAppInfo()
         if len(self.versions) == 0:
@@ -188,7 +186,23 @@ class ITCApplication(object):
         if versionString == None: # No versions to edit. Generate config from the first one
             versionString = self.versions.keys()[0]
         
-        self.__generateConfigForVersion(self.versions[versionString])
+        resultDict = self.__generateConfigForVersion(self.versions[versionString])
+
+        if generateInapps:
+            if len(self.inapps) == 0:
+                self.getInapps()
+
+            inapps = []
+            for inappId, inapp in self.inapps.items():
+                inapps.append(inapp.generateConfig())
+
+            if len(inapps) > 0:
+                resultDict['inapps'] = inapps
+
+        filename = str(self.applicationId) + '.json'
+        with open(filename, 'wb') as fp:
+            json.dump(resultDict, fp, sort_keys=False, indent=4, separators=(',', ': '))
+
 
 
     def editVersion(self, dataDict, lang=None, versionString=None, filename_format=None):

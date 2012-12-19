@@ -22,9 +22,6 @@ Automatic
 -------
 * Download sources somewhere on your computer
 * sudo python setup.py install
-* Now ````itc```` command available from anywhere on your computer
-
-You're done!
 
 Manual
 -------
@@ -32,9 +29,8 @@ Manual
 * Install dependencies: [lxml](http://lxml.de/installation.html), [html5lib](http://code.google.com/p/html5lib/wiki/UserDocumentation), [requests](http://docs.python-requests.org/en/latest/user/install/)
 * ````export PYTHONPATH=${PYTHONPATH}:/path/to/itc.cli/source/directory````
 * ````export PATH=${PATH}:/path/to/itc.cli/source/directory/itc/bin````
-* Now ````itc```` command available from anywhere on your computer
 
-You're done!
+Now ````itc```` command is available to run
 
 Usage
 =======

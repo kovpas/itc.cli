@@ -18,18 +18,34 @@ itc.cli is available under the MIT license.
 Installation
 =======
 
-Dependencies: [lxml](http://lxml.de/installation.html), [html5lib](http://code.google.com/p/html5lib/wiki/UserDocumentation), [requests](http://docs.python-requests.org/en/latest/user/install/)
+Automatic
+-------
+* Download sources somewhere on your computer
+* sudo python setup.py install
+* Now ````itc```` command available from anywhere on your computer
+
+You're done!
+
+Manual
+-------
+* Download sources somewhere on your computer
+* Install dependencies: [lxml](http://lxml.de/installation.html), [html5lib](http://code.google.com/p/html5lib/wiki/UserDocumentation), [requests](http://docs.python-requests.org/en/latest/user/install/)
+* ````export PYTHONPATH=${PYTHONPATH}:/path/to/itc.cli/source/directory````
+* ````export PATH=${PATH}:/path/to/itc.cli/source/directory/itc/bin````
+* Now ````itc```` command available from anywhere on your computer
+
+You're done!
 
 Usage
 =======
 
-```` ./itc/bin/itc --username apple_id --password my_password````
+```` itc --username apple_id --password my_password````
 
 ````--password```` parameter is not mandatory, so you can input password manually after script startup
 
 If all dependencies installed properly, you will see something like this:
 
-```` ./itc/bin/itc --username apple_id````  
+```` itc --username apple_id````  
 > Password:  
 INFO:root:Login: logged in. Session cookies are saved to .itc-cli-cookies.txt  
 INFO:root:Application found: "App 1" (123456789)  
@@ -40,7 +56,7 @@ Every time you run the script, it uses cookies which are stored in the file ````
 
 Party begins with ````--config_file```` parameter:
 
-````./itc/bin/itc --username apple_id --config-file actions.json````
+````itc --username apple_id --config-file actions.json````
 
 Config file format
 =======
@@ -189,6 +205,7 @@ There are two ways of managing inapps. The first one is one by one:
   "cleared": false,
   "hosting content with apple": false,
   "review notes": "Notes",
+  "review screenshot": "images/inapp.png",
   "general": {
     "name": "Test inapp",
     "description": "Description inapp",
@@ -215,7 +232,7 @@ The second one is by using templates.
 {
   "index iterator": {
     "indexes": [1, 3, 5]
-  }
+  },
   "id": "ru.kovpas.itc.cli.test.1.inapp.{index}",
   "type": "Non-Renewing Subscription",
   "reference name": "Test inapp - {index}",
@@ -223,6 +240,7 @@ The second one is by using templates.
   "cleared": false,
   "hosting content with apple": false,
   "review notes": "Notes",
+  "review screenshot": "images/inapp.png",
   "general": {
     "name": "Test inapp - {index}",
     "description": "Description inapp - {index}",

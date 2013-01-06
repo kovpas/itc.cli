@@ -185,6 +185,10 @@ Of course for each language you can specify exact indexes of replaced/deleted an
 
 In the example above, all iPad and pt/iPhone 5 screenshots will be uploaded by generic rule. The rest are specific for each language.
 
+Automagically generate config file
+=======
+
+With ````--generate-config```` parameter script creates json file ({application_id}.json), which contains metadata for each language of the application. In case if no ````--application-id```` parameter passed to script, it iterates through all the applications for current account.
 
 In-App purchases
 =======

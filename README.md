@@ -290,7 +290,7 @@ Roadmap
 =======  
 
 There are several features planned to be implemented:  
-* inapp purchases management  
+* ~~inapp purchases management~~  
 * promo codes  
 * sales reports  
 * user reviews  

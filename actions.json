@@ -45,35 +45,41 @@
         "inapps": [
             {
                 "index iterator": {
-                    "from": 17,
-                    "to": 17
+                    "from": 19,
+                    "to": 20
                 },
                 "id": "ru.kovpas.itc.cli.test.1.inapp.{index}",
                 "type": "Non-Consumable",
                 "reference name": "Test inapp - {index}",
-                "price tier": 2,
+                "price tier": {
+                    "19-20": 1,
+                    "21": 2
+                },
                 "cleared": false,
                 "hosting content with apple": false,
                 "review notes": "NotesNOTES",
                 "review screenshot": "images/inapp.png",
                 "general": {
-                    "name": "Test inapp - {index}",
-                    "description": "Description inapp - {index}",
+                    "name": ["My first inapp", "My second inapp", "My third inapp"],
+                    "description": {
+                        "19": "My first inapp description",
+                        "20": "My second inapp description",
+                        "21": "My third inapp description"
+                    },
                     "publication name": "Publication inapp - {index}"
                 },
                 "languages": {
                     "en": {
-                        "name": "Test inapp - {index} - en",
-                        "description": "Description inapp - {index} - en",
+                        "name": ["My first inapp - en", "My second inapp - en", "My third inapp - en"],
                         "publication name": "Publication inapp - {index} - en"
                     },
                     "ru": {
-                        "name": "Test inapp - {index} - ru",
+                        "name": ["My first inapp - ru", "My second inapp - ru", "My third inapp - ru"],
                         "description": "Description inapp - {index} - ru",
                         "publication name": "Publication inapp - {index} - ru"
                     },
                     "pt": {
-                        "name": "Test inapp - {index} - pt",
+                        "name": ["My first inapp - pt", "My second inapp - pt", "My third inapp - pt"],
                         "description": "Description inapp - {index} - pt",
                         "publication name": "Publication inapp - {index} - pt"
                     }

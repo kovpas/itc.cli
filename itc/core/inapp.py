@@ -255,7 +255,7 @@ class ITCInappPurchase(object):
 
         if (inapptype != "Free Subscription"):
             inappPriceTierName = inappTree.xpath('//select[@id="price_tier_popup"]/@name')[0]
-            formData[inappPriceTierName] = int(self.priceTier) - 1
+            formData[inappPriceTierName] = int(self.priceTier)
 
         if (inapptype == "Non-Consumable"):
             hostingContentName = inappTree.xpath('//div[contains(@class,"hosting-on-apple")]//input[@classname="radioTrue"]/@name')[0]

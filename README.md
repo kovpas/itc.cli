@@ -5,7 +5,7 @@ Disclaimer
 
 itc.cli
 =======
-iTunesConnect command line interface **β**
+iTunesConnect command line interface.
 
 Script allows to add/edit metadata, uploads and in-app purchases of the application through iTunesConnect without user interaction.
 
@@ -228,24 +228,31 @@ The second one is by using templates.
 ````JSON
 {
   "index iterator": {
-    "indexes": [1, 3, 5]
+    "indexes": [19, 20, 22]
   },
   "id": "ru.kovpas.itc.cli.test.1.inapp.{index}",
   "type": "Non-Renewing Subscription",
   "reference name": "Test inapp - {index}",
-  "price tier": 2,
+  "price tier": {
+    "19-20": 1,
+    "22": 2
+  },
   "cleared": false,
   "hosting content with apple": false,
   "review notes": "Notes",
   "review screenshot": "images/inapp.png",
   "general": {
-    "name": "Test inapp - {index}",
-    "description": "Description inapp - {index}",
+    "name": ["My first inapp", "My second inapp", "My third inapp"],
+    "description": {
+      "19": "My first inapp description",
+      "20": "My second inapp description",
+      "22": "My third inapp description"
+    },
     "publication name": "Publication inapp - {index}"
   },
   "languages": {
     "en": {
-      "name": "Test inapp - {index} - en",
+      "name": ["My first inapp - en", "My second inapp - en", "My third inapp - en"],
       "description": "Description inapp - {index} - en",
     },
     "ru": {
@@ -258,7 +265,10 @@ The second one is by using templates.
 }
 ````
 
-Script iterates through ````indexes```` array and creates inapp purchase. Every ````{index}```` keyword is replaced by corresponding index. For the example above 3 inapps will be created.
+Script iterates through ````indexes```` array and creates inapp purchase. For the example above 3 inapps will be created.
+
+Every ````{index}```` keyword in strings is replaced by corresponding index.  
+Arrays and dictionaries are also supported, so you could provide an array or dictionary instead of string. See example above for format reference. 
 
 Another way is to create start and end indexes:
 ````JSON
@@ -273,7 +283,10 @@ Another way is to create start and end indexes:
 If ````from```` index is not provided, 1 is used. ````to```` index is mandatory.
 
 Roadmap
-=======
+=======  
 
-Two features are planned to be implemented: inapp purchases management and promo codes.  
-... and may be sales reports.
+There are several features planned to be implemented:  
+* inapp purchases management  
+* promo codes  
+* sales reports  
+* user reviews  

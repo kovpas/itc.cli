@@ -62,6 +62,23 @@ def __parse_configuration_file():
     return globals()['config']
 
 
+def flattenDictIndexes(dict):
+    for indexKey, val in dict.items():
+        if "-" in indexKey:
+            startIndex, endIndex = indexKey.split("-")
+            for i in range(int(startIndex), int(endIndex) + 1):
+                dict[i] = val
+            del dict[indexKey]
+        else: 
+            try:
+                dict[int(indexKey)] = val
+                del dict[indexKey]
+            except:
+                pass
+
+    return dict
+
+
 def main():
     os.umask(0077)
     if not os.path.exists(temp_dir):
@@ -84,7 +101,7 @@ def main():
     if not server.isLoggedIn:
         if options.password == None:
             options.password = getpass.getpass()
-        server.login(password=options.password)
+        server.login(password = options.password)
 
     if len(server.applications) == 0:
         server.fetchApplicationsList()
@@ -108,7 +125,7 @@ def main():
             applications = server.applications
 
         for applicationId, application in applications.items():
-            application.generateConfig(options.application_version, generateInapps=options.generate_inapp)
+            application.generateConfig(options.application_version, generateInapps = options.generate_inapp)
     
 
         return
@@ -124,9 +141,9 @@ def main():
     commonActions = applicationDict['metadata'].get('general', {})
     specificLangCommands = applicationDict['metadata']['languages']
     langActions = {}
-    # filename_format = cfg.get('config', {}) \
-    #                        .get('images', {}) \
-    #                           .get('filename format', default_file_format)
+    filename_format = cfg.get('config', {}) \
+                           .get('images', {}) \
+                              .get('filename format', default_file_format)
 
     for lang in specificLangCommands:
         langActions[languages.languageNameForId(lang)] = dict_merge(commonActions, specificLangCommands[lang])
@@ -136,9 +153,9 @@ def main():
     if applicationId in server.applications:
         application = server.applications[applicationId]
 
-        # for lang in langActions:
-        #     actions = langActions[lang]
-        #     application.editVersion(actions, lang=lang, filename_format=filename_format)
+        for lang in langActions:
+            actions = langActions[lang]
+            application.editVersion(actions, lang=lang, filename_format=filename_format)
 
         for inappDict in applicationDict['inapps']:
             isIterable = inappDict['id'].find('{index}') != -1
@@ -155,6 +172,7 @@ def main():
                 langsDict[langId] = dict_merge(genericLangsDict, langsDict[langId])
 
             inappDict['languages'] = langsDict
+            del inappDict['general']
 
             indexes = [-1]
             if (isIterable):
@@ -162,22 +180,48 @@ def main():
                 if indexes == None:
                     indexes = range(iteratorDict.get('from', 1), iteratorDict['to'] + 1)
 
+            del inappDict['index iterator']
+
+            for key, value in inappDict.items():
+                if (not key in ("index iterator", "general", "languages")) and isinstance(value, dict):
+                    flattenDictIndexes(value)
+
+            for langKey, value in inappDict["languages"].items():
+                for innerLangKey, langValue in inappDict["languages"][langKey].items():
+                    if isinstance(langValue, dict):
+                        flattenDictIndexes(langValue)
+
+            realindex = 0
             for index in indexes:
                 inappIndexDict = deepcopy(inappDict)
                 if isIterable:
                     for key in inappIndexDict:
-                        if (type(inappIndexDict[key]) is str) or (type(inappIndexDict[key]) is unicode):
+                        if key in ("index iterator", "general", "languages"):
+                            continue
+
+                        if (isinstance(inappIndexDict[key], basestring)):
                             inappIndexDict[key] = inappIndexDict[key].replace('{index}', str(index))
+                        elif (isinstance(inappIndexDict[key], list)):
+                            inappIndexDict[key] = inappIndexDict[key][realindex]
+                        elif (isinstance(inappIndexDict[key], dict)):
+                            inappIndexDict[key] = inappIndexDict[key][index]
+
                     langsDict = inappIndexDict['languages']
 
                     for langId, langDict in langsDict.items():
                         for langKey in langDict:
-                            if (type(langDict[langKey]) is str) or (type(langDict[langKey]) is unicode):
+                            if (isinstance(langDict[langKey], basestring)):
                                 langDict[langKey] = langDict[langKey].replace('{index}', str(index))
+                            elif (isinstance(langDict[langKey], list)):
+                                langDict[langKey] = langDict[langKey][realindex]
+                            elif (isinstance(langDict[langKey], dict)):
+                                langDict[langKey] = langDict[langKey][index]
 
                 inapp = application.getInappById(inappIndexDict['id'])
                 if inapp == None:
                     application.createInapp(inappIndexDict)
                 else:
                     inapp.update(inappIndexDict)
+
+                realindex += 1
 

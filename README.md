@@ -5,11 +5,12 @@ Disclaimer
 
 itc.cli
 =======
-iTunesConnect command line interface **β**
+iTunesConnect command line interface.
 
-Script allows to add/edit metadata and uploads of the application through iTunesConnect without user interaction.
+Script allows to add/edit metadata, uploads and in-app purchases of the application through iTunesConnect without user interaction.
 
-This is my first ever application written in python, so, please don't judge me too harshly ;)
+Have you ever had to create 1000 inapp purchases by template? Or may be to upload 15 localized screenshots for each of 25 languages you app supports? This script does that for you :)  
+<sub>This is my first ever application written in python, so, please don't judge me too harshly ;)</sub>
 
 License
 =======
@@ -18,18 +19,30 @@ itc.cli is available under the MIT license.
 Installation
 =======
 
-Dependencies: [lxml](http://lxml.de/installation.html), [html5lib](http://code.google.com/p/html5lib/wiki/UserDocumentation), [requests](http://docs.python-requests.org/en/latest/user/install/)
+### Automatic
+
+* Download sources somewhere on your computer
+* ````sudo python setup.py install````
+
+### Manual
+
+* Download sources somewhere on your computer
+* Install dependencies: [lxml](http://lxml.de/installation.html), [html5lib](http://code.google.com/p/html5lib/wiki/UserDocumentation), [requests](http://docs.python-requests.org/en/latest/user/install/)
+* ````export PYTHONPATH=${PYTHONPATH}:/path/to/itc.cli/source/directory````
+* ````export PATH=${PATH}:/path/to/itc.cli/source/directory/itc/bin````
+
+Now ````itc```` command is available to run
 
 Usage
 =======
 
-```` ./itc.py --username apple_id --password my_password````
+```` itc --username apple_id --password my_password````
 
 ````--password```` parameter is not mandatory, so you can input password manually after script startup
 
 If all dependencies installed properly, you will see something like this:
 
-````itc.cli.git kovpas$ ./itc.py --username apple_id````  
+```` itc --username apple_id````  
 > Password:  
 INFO:root:Login: logged in. Session cookies are saved to .itc-cli-cookies.txt  
 INFO:root:Application found: "App 1" (123456789)  
@@ -40,7 +53,7 @@ Every time you run the script, it uses cookies which are stored in the file ````
 
 Party begins with ````--config_file```` parameter:
 
-````./itc.py --username apple_id --config-file actions.json````
+````itc --username apple_id --config-file actions.json````
 
 Config file format
 =======
@@ -172,8 +185,108 @@ Of course for each language you can specify exact indexes of replaced/deleted an
 
 In the example above, all iPad and pt/iPhone 5 screenshots will be uploaded by generic rule. The rest are specific for each language.
 
-Roadmap
+
+In-App purchases
 =======
 
-Two features are planned to be implemented: inapp purchases management and promo codes.  
-... and may be sales reports.
+At the moment, 4 of 5 inapp types are supported: 'Consumable', 'Non-Consumable', 'Free Subscription', 'Non-Renewing Subscription'
+
+There are two ways of managing inapps. The first one is one by one:
+
+````JSON
+[{       
+  "id": "ru.kovpas.itc.cli.test.1.inapp.1",
+  "type": "Non-Consumable",
+  "reference name": "Test inapp",
+  "price tier": 2,
+  "cleared": false,
+  "hosting content with apple": false,
+  "review notes": "Notes",
+  "review screenshot": "images/inapp.png",
+  "general": {
+    "name": "Test inapp",
+    "description": "Description inapp",
+    "publication name": "Publication inapp" <- only used for appropriate inapps 
+  },
+  "languages": {
+    "en": {
+      "name": "Test inapp - en",
+      "description": "Description inapp - en",
+    },
+    "ru": {
+      "publication name": "Publication inapp - ru"
+    },
+    "pt": {
+      "description": "Description inapp - pt",
+    }
+  }
+}, {2nd inapp}, {3rd inapp}, ...]
+````
+
+The second one is by using templates. 
+
+````JSON
+{
+  "index iterator": {
+    "indexes": [19, 20, 22]
+  },
+  "id": "ru.kovpas.itc.cli.test.1.inapp.{index}",
+  "type": "Non-Renewing Subscription",
+  "reference name": "Test inapp - {index}",
+  "price tier": {
+    "19-20": 1,
+    "22": 2
+  },
+  "cleared": false,
+  "hosting content with apple": false,
+  "review notes": "Notes",
+  "review screenshot": "images/inapp.png",
+  "general": {
+    "name": ["My first inapp", "My second inapp", "My third inapp"],
+    "description": {
+      "19": "My first inapp description",
+      "20": "My second inapp description",
+      "22": "My third inapp description"
+    },
+    "publication name": "Publication inapp - {index}"
+  },
+  "languages": {
+    "en": {
+      "name": ["My first inapp - en", "My second inapp - en", "My third inapp - en"],
+      "description": "Description inapp - {index} - en",
+    },
+    "ru": {
+      "publication name": "Publication inapp - {index} - ru"
+    },
+    "pt": {
+      "description": "Description inapp - {index} - pt",
+    }
+  }
+}
+````
+
+Script iterates through ````indexes```` array and creates inapp purchase. For the example above 3 inapps will be created.
+
+Every ````{index}```` keyword in strings is replaced by corresponding index.  
+Arrays and dictionaries are also supported, so you could provide an array or dictionary instead of string. See example above for format reference. 
+
+Another way is to create start and end indexes:
+````JSON
+{
+  "index iterator": {
+    "from": 7,
+    "to": 9
+  }
+}
+````
+
+If ````from```` index is not provided, 1 is used. ````to```` index is mandatory.
+
+Roadmap
+=======  
+
+There are several features planned to be implemented:  
+* inapp purchases management  
+* promo codes  
+* sales reports  
+* user reviews  

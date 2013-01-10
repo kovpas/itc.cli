@@ -29,6 +29,7 @@ class ITCApplication(object):
         self._uploadSessionData = {}
         self._images = {}
         self._manageInappsLink = None
+        self._customerReviewsLink = None
         self._manageInappsTree = None
         self._createInappLink = None
         self._inappActionURLs = None
@@ -59,6 +60,7 @@ class ITCApplication(object):
         versionsMetadata = self._parser.parseAppVersionsPage(tree)
         # get 'manage in-app purchases' link
         self._manageInappsLink = versionsMetadata.manageInappsLink
+        self._customerReviewsLink = versionsMetadata.customerReviewsLink
         self.versions = versionsMetadata.versions
 
     def __parseURLSFromScript(self, script):
@@ -176,6 +178,7 @@ class ITCApplication(object):
 
         return resultDict
 
+
     def generateConfig(self, versionString=None, generateInapps=False):
         if len(self.versions) == 0:
             self.getAppInfo()
@@ -203,6 +206,23 @@ class ITCApplication(object):
         with open(filename, 'wb') as fp:
             json.dump(resultDict, fp, sort_keys=False, indent=4, separators=(',', ': '))
 
+
+    def __generateReviewsForVersion(self, version):
+        pass
+
+
+    def generateReviews(self, versionString=None):
+        if self._customerReviewsLink == None:
+            self.getAppInfo()
+        if self._customerReviewsLink == None:
+            raise 'Can\'t get "Customer Reviews link"'
+
+        # TODO: parse multiple pages of inapps.
+        tree = self._parser.parseTreeForURL(self._manageInappsLink)
+        resultDict = self.__generateReviewsForVersion(versionString)
+        filename = str(self.applicationId) + '.reviews.json'
+        with open(filename, 'wb') as fp:
+            json.dump(resultDict, fp, sort_keys=False, indent=4, separators=(',', ': '))
 
 
     def editVersion(self, dataDict, lang=None, versionString=None, filename_format=None):
@@ -424,7 +444,7 @@ class ITCApplication(object):
         if self._manageInappsLink == None:
             self.getAppInfo()
         if self._manageInappsLink == None:
-            raise 'Can\'t get "Manage In-App purchases link :(("'
+            raise 'Can\'t get "Manage In-App purchases link"'
 
         # TODO: parse multiple pages of inapps.
         tree = self._parser.parseTreeForURL(self._manageInappsLink)

@@ -17,6 +17,10 @@ cookie_file_name = '.itc-cli-cookies.txt'
 cookie_file = os.path.join(temp_dir, cookie_file_name)
 cookie_jar = LWPCookieJar(cookie_file)
 
+class ALIASES:
+	language_aliases = {}
+	device_type_aliases = {}
+
 def __initCookies():
     if cookie_file:
         try:

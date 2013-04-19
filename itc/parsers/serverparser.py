@@ -25,7 +25,7 @@ class ITCServerParser(BaseParser):
 
 
     def parseSessionURLs(self, htmlTree):
-        manageAppsLink = htmlTree.xpath("//a[.='Manage Your Applications']")
+        manageAppsLink = htmlTree.xpath("//a[.='Manage Your Apps']")
         if len(manageAppsLink) == 0:
             raise
 

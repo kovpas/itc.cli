@@ -11,19 +11,24 @@ class ITCApplicationParser(BaseParser):
 
     
     def parseAppVersionsPage(self, htmlTree):
-        AppVersions = namedtuple('AppVersions', ['manageInappsLink', 'versions'])
+        AppVersions = namedtuple('AppVersions', ['manageInappsLink', 'customerReviewsLink', 'versions'])
 
         # get 'manage in-app purchases' link
-        manageInappsLink = htmlTree.xpath("//ul[@id='availableButtons']/li/a/span[starts-with(@class, 'in-app')]/../@href")[0]
+        manageInappsLink = htmlTree.xpath("//ul[@id='availableButtons']/li/a[.='Manage In-App Purchases']/@href")[0]
+        customerReviewsLinkTree = htmlTree.xpath("//td[@class='value']/a[.='Customer Reviews']/@href")
+        customerReviewsLink = None
+        if (len(customerReviewsLinkTree) > 0):
+            customerReviewsLink = customerReviewsLinkTree[0]
         logging.debug("Manage In-App purchases link: " + manageInappsLink)
+        logging.debug("Customer reviews link: " + manageInappsLink)
 
         versionsContainer = htmlTree.xpath("//h2[.='Versions']/following-sibling::div")
         if len(versionsContainer) == 0:
-            return AppVersions(manageInappsLink=manageInappsLink, versions={})
+            return AppVersions(manageInappsLink=manageInappsLink, customerReviewsLink=customerReviewsLink, versions={})
 
         versionDivs = versionsContainer[0].xpath(".//div[@class='version-container']")
         if len(versionDivs) == 0:
-            return AppVersions(manageInappsLink=manageInappsLink, versions={})
+            return AppVersions(manageInappsLink=manageInappsLink, customerReviewsLink=customerReviewsLink, versions={})
 
         versions = {}
 
@@ -31,7 +36,7 @@ class ITCApplicationParser(BaseParser):
             version = {}
             versionString = versionDiv.xpath(".//p/label[.='Version']/../span")[0].text.strip()
             
-            version['detailsLink'] = versionDiv.xpath(".//span[.='View Details']/..")[0].attrib['href']
+            version['detailsLink'] = versionDiv.xpath(".//a[.='View Details']/@href")[0]
             version['statusString'] = ("".join([str(x) for x in versionDiv.xpath(".//span/img[starts-with(@src, '/itc/images/status-')]/../text()")])).strip()
             version['editable'] = (version['statusString'] != 'Ready for Sale')
             version['versionString'] = versionString
@@ -41,7 +46,7 @@ class ITCApplicationParser(BaseParser):
 
             versions[versionString] = version
 
-        return AppVersions(manageInappsLink=manageInappsLink, versions=versions)
+        return AppVersions(manageInappsLink=manageInappsLink, customerReviewsLink=customerReviewsLink, versions=versions)
 
 
     def parseCreateOrEditPage(self, htmlTree, version, language=None):

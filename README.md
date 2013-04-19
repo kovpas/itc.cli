@@ -92,6 +92,16 @@ For Brasilian Portugese:
 "whats new"          : "What's new - default" 
 ````  
 
+You can also use files as a source of data for "whats new", "description" and "keywords":
+```` JSON
+  "general" : {
+      "name"               : "My application - default",
+      "whats new"          : {"file name format": "app data/whats new - {language}.txt"},
+  }
+````
+
+So, itc.cli during iteration through languages will replace {language} with appropriate language id (i.e. "pt", "en" and so on).
+
 Now the most interesting part - images. Images object contains three fields:
 * iphone
 * iphone 5
@@ -122,7 +132,7 @@ There's an option in ````config```` section:
 ```` JSON
 {
     "images": {
-        "filename_format": "images/{language}/{device_type} {index}.png"
+        "file name format": "images/{language}/{device_type} {index}.png"
     }
 }
 ````

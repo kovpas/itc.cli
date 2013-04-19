@@ -34,12 +34,15 @@ def __parse_options(args):
     parser.add_argument('--application-version', '-e', dest='application_version', metavar='VERSION', default=None,
                        help='Application version to generate config. \
                        If not provided, config will be generated for latest version')
-    parser.add_argument('--application-id', '-a', dest='application_id', type=int,
+    parser.add_argument('--application-id', '-a', dest='application_id', type=int, default=-1,
                        help='Application id to process. If --config-file provided and it contains \'application id\', \
                        this property is be ignored')
     parser.add_argument('--generate-config-inapp', '-i', dest='generate_inapp', default=False, action='store_true',
                        help='If this flag passed, inapps will be generated as well. This flag is ignored \
                         if --generate-config is not provided')
+
+    parser.add_argument('--reviews', '-r', dest='reviews', default=False, action='store_true',
+                       help='Download reviews')
 
 
     args = parser.parse_args(args)
@@ -58,6 +61,10 @@ def __parse_options(args):
 def __parse_configuration_file():
     if options.config_file != None:
         globals()['config'] = json.load(options.config_file)
+        ALIASES.language_aliases = globals()['config'].get('config', {}) \
+                                .get('language aliases', {})
+        ALIASES.device_type_aliases = globals()['config'].get('config', {}) \
+                                .get('device type aliases', {})
 
     return globals()['config']
 
@@ -111,7 +118,7 @@ def main():
         return
         
     logging.debug(server.applications)
-    logging.debug(options)
+    # logging.debug(options)
 
     if options.generate_config:
         if options.application_id:
@@ -126,9 +133,15 @@ def main():
 
         for applicationId, application in applications.items():
             application.generateConfig(options.application_version, generateInapps = options.generate_inapp)
-    
 
         return
+
+    if options.reviews:
+        if not options.application_id in server.applications: 
+            logging.error("Provide correct application id (--application-id or -a option)")
+        else:
+            application = server.applications[options.application_id]
+            application.generateReviews(options.application_version)
 
     cfg = __parse_configuration_file()
     if len(cfg) == 0:
@@ -143,7 +156,7 @@ def main():
     langActions = {}
     filename_format = cfg.get('config', {}) \
                            .get('images', {}) \
-                              .get('filename format', default_file_format)
+                              .get('file name format', default_file_format)
 
     for lang in specificLangCommands:
         langActions[languages.languageNameForId(lang)] = dict_merge(commonActions, specificLangCommands[lang])
@@ -157,7 +170,7 @@ def main():
             actions = langActions[lang]
             application.editVersion(actions, lang=lang, filename_format=filename_format)
 
-        for inappDict in applicationDict['inapps']:
+        for inappDict in applicationDict.get('inapps', {}):
             isIterable = inappDict['id'].find('{index}') != -1
             iteratorDict = inappDict.get('index iterator')
 

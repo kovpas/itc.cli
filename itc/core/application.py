@@ -29,6 +29,7 @@ class ITCApplication(object):
         self._uploadSessionData = {}
         self._images = {}
         self._manageInappsLink = None
+        self._customerReviewsLink = None
         self._manageInappsTree = None
         self._createInappLink = None
         self._inappActionURLs = None
@@ -59,6 +60,7 @@ class ITCApplication(object):
         versionsMetadata = self._parser.parseAppVersionsPage(tree)
         # get 'manage in-app purchases' link
         self._manageInappsLink = versionsMetadata.manageInappsLink
+        self._customerReviewsLink = versionsMetadata.customerReviewsLink
         self.versions = versionsMetadata.versions
 
     def __parseURLSFromScript(self, script):
@@ -176,6 +178,7 @@ class ITCApplication(object):
 
         return resultDict
 
+
     def generateConfig(self, versionString=None, generateInapps=False):
         if len(self.versions) == 0:
             self.getAppInfo()
@@ -204,6 +207,23 @@ class ITCApplication(object):
             json.dump(resultDict, fp, sort_keys=False, indent=4, separators=(',', ': '))
 
 
+    def __generateReviewsForVersion(self, version):
+        pass
+
+
+    def generateReviews(self, versionString=None):
+        if self._customerReviewsLink == None:
+            self.getAppInfo()
+        if self._customerReviewsLink == None:
+            raise 'Can\'t get "Customer Reviews link"'
+
+        # TODO: parse multiple pages of inapps.
+        tree = self._parser.parseTreeForURL(self._manageInappsLink)
+        resultDict = self.__generateReviewsForVersion(versionString)
+        filename = str(self.applicationId) + '.reviews.json'
+        with open(filename, 'wb') as fp:
+            json.dump(resultDict, fp, sort_keys=False, indent=4, separators=(',', ': '))
+
 
     def editVersion(self, dataDict, lang=None, versionString=None, filename_format=None):
         if dataDict == None or len(dataDict) == 0: # nothing to change
@@ -223,27 +243,49 @@ class ITCApplication(object):
             raise 'Version ' + versionString + ' is not editable'
 
         languageId = languages.appleLangIdForLanguage(lang)
+        languageCode = languages.langCodeForLanguage(lang)
 
         metadata = self.__parseAppVersionMetadata(version, lang)
         # activatedLanguages = metadata.activatedLanguages
         # nonactivatedLanguages = metadata.nonactivatedLanguages
-        formData = metadata.formData[languageId]
+        formData = {} #metadata.formData[languageId]
         formNames = metadata.formNames[languageId]
         submitAction = metadata.submitActions[languageId]
-
+        
         formData["save"] = "true"
 
         if 'name' in dataDict:
-            formData[formNames['descriptionName']] = dataDict['name']
+            formData[formNames['appNameName']] = dataDict['name']
 
         if 'description' in dataDict:
-            formData[formNames['appNameName']] = dataDict['description']
+            if (isinstance(dataDict['description'], basestring)):
+                formData[formNames['descriptionName']] = dataDict['description']
+            elif (isinstance(dataDict['description'], dict)):
+                if ('file name format' in dataDict['description']):
+                    desc_filename_format = dataDict['description']['file name format']
+                    replace_language = ALIASES.language_aliases.get(languageCode, languageCode)
+                    descriptionFilePath = desc_filename_format.replace('{language}', replace_language)
+                    formData[formNames['descriptionName']] = open(descriptionFilePath, 'r').read()
 
         if ('whatsNewName' in formNames) and ('whats new' in dataDict):
-            formData[formNames['whatsNewName']] = dataDict['whats new']
+            if (isinstance(dataDict['whats new'], basestring)):
+                formData[formNames['whatsNewName']] = dataDict['whats new']
+            elif (isinstance(dataDict['whats new'], dict)):
+                if ('file name format' in dataDict['whats new']):
+                    desc_filename_format = dataDict['whats new']['file name format']
+                    replace_language = ALIASES.language_aliases.get(languageCode, languageCode)
+                    descriptionFilePath = desc_filename_format.replace('{language}', replace_language)
+                    formData[formNames['whatsNewName']] = open(descriptionFilePath, 'r').read()
 
         if 'keywords' in dataDict:
-            formData[formNames['keywordsName']] = dataDict['keywords']
+            if (isinstance(dataDict['keywords'], basestring)):
+                formData[formNames['keywordsName']] = dataDict['keywords']
+            elif (isinstance(dataDict['keywords'], dict)):
+                if ('file name format' in dataDict['keywords']):
+                    desc_filename_format = dataDict['keywords']['file name format']
+                    replace_language = ALIASES.language_aliases.get(languageCode, languageCode)
+                    descriptionFilePath = desc_filename_format.replace('{language}', replace_language)
+                    formData[formNames['keywordsName']] = open(descriptionFilePath, 'r').read()
 
         if 'support url' in dataDict:
             formData[formNames['supportURLName']] = dataDict['support url']
@@ -305,9 +347,11 @@ class ITCApplication(object):
                     imageAction.setdefault('indexes')
                     cmd = imageAction['cmd']
                     indexes = imageAction['indexes']
+                    replace_language = ALIASES.language_aliases.get(languageCode, languageCode)
+                    replace_device = ALIASES.device_type_aliases.get(dType.lower(), DEVICE_TYPE.deviceStrings[device_type])
 
-                    imagePath = filename_format.replace('{language}', languageCode) \
-                           .replace('{device_type}', DEVICE_TYPE.deviceStrings[device_type])
+                    imagePath = filename_format.replace('{language}', replace_language) \
+                           .replace('{device_type}', replace_device)
                     logging.debug('Looking for images at ' + imagePath)
 
                     if (indexes == None) and ((cmd == 'u') or (cmd == 'r')):
@@ -326,7 +370,7 @@ class ITCApplication(object):
 
                         for imageIndexToDelete in deleteIndexes:
                             img = next(im for im in self._images[DEVICE_TYPE.iPhone5] if im['id'] == imageIndexToDelete)
-                            self.__deleteScreenshot(DEVICE_TYPE.iPhone5, img['id'])
+                            self.__deleteScreenshot(device_type, img['id'])
 
                         self._images[device_type] = self.__imagesForDevice(device_type)
                     
@@ -424,7 +468,7 @@ class ITCApplication(object):
         if self._manageInappsLink == None:
             self.getAppInfo()
         if self._manageInappsLink == None:
-            raise 'Can\'t get "Manage In-App purchases link :(("'
+            raise 'Can\'t get "Manage In-App purchases link"'
 
         # TODO: parse multiple pages of inapps.
         tree = self._parser.parseTreeForURL(self._manageInappsLink)

@@ -321,7 +321,7 @@ class ITCApplication(object):
             self._images[device_type] = self.__imagesForDevice(device_type)
 
         logging.debug(self._images)
-        logging.debug(formData)
+        # logging.debug(formData)
 
         if 'images' in dataDict:
             imagesActions = dataDict['images']
@@ -337,6 +337,8 @@ class ITCApplication(object):
                     device_type = DEVICE_TYPE.iPad
                 else:
                     continue
+
+                logging.debug("\n\n" + DEVICE_TYPE.deviceStrings[device_type] + "\n")
 
                 deviceImagesActions = imagesActions[dType]
                 if deviceImagesActions == "":
@@ -358,9 +360,11 @@ class ITCApplication(object):
                         indexes = []
                         for i in range(0, 5):
                             realImagePath = imagePath.replace("{index}", str(i + 1))
+                            logging.debug('img path: ' + realImagePath)
                             if os.path.exists(realImagePath):
                                 indexes.append(i + 1)
 
+                    logging.debug('indexes ' + indexes.__str__())
                     logging.debug('Processing command ' + imageAction.__str__())
 
                     if (cmd == 'd') or (cmd == 'r'): # delete or replace. To perform replace we need to delete images first
@@ -369,7 +373,7 @@ class ITCApplication(object):
                             deleteIndexes = [deleteIndexes[idx - 1] for idx in indexes]
 
                         for imageIndexToDelete in deleteIndexes:
-                            img = next(im for im in self._images[DEVICE_TYPE.iPhone5] if im['id'] == imageIndexToDelete)
+                            img = next(im for im in self._images[device_type] if im['id'] == imageIndexToDelete)
                             self.__deleteScreenshot(device_type, img['id'])
 
                         self._images[device_type] = self.__imagesForDevice(device_type)

@@ -243,27 +243,49 @@ class ITCApplication(object):
             raise 'Version ' + versionString + ' is not editable'
 
         languageId = languages.appleLangIdForLanguage(lang)
+        languageCode = languages.langCodeForLanguage(lang)
 
         metadata = self.__parseAppVersionMetadata(version, lang)
         # activatedLanguages = metadata.activatedLanguages
         # nonactivatedLanguages = metadata.nonactivatedLanguages
-        formData = metadata.formData[languageId]
+        formData = {} #metadata.formData[languageId]
         formNames = metadata.formNames[languageId]
         submitAction = metadata.submitActions[languageId]
-
+        
         formData["save"] = "true"
 
         if 'name' in dataDict:
-            formData[formNames['descriptionName']] = dataDict['name']
+            formData[formNames['appNameName']] = dataDict['name']
 
         if 'description' in dataDict:
-            formData[formNames['appNameName']] = dataDict['description']
+            if (isinstance(dataDict['description'], basestring)):
+                formData[formNames['descriptionName']] = dataDict['description']
+            elif (isinstance(dataDict['description'], dict)):
+                if ('file name format' in dataDict['description']):
+                    desc_filename_format = dataDict['description']['file name format']
+                    replace_language = ALIASES.language_aliases.get(languageCode, languageCode)
+                    descriptionFilePath = desc_filename_format.replace('{language}', replace_language)
+                    formData[formNames['descriptionName']] = open(descriptionFilePath, 'r').read()
 
         if ('whatsNewName' in formNames) and ('whats new' in dataDict):
-            formData[formNames['whatsNewName']] = dataDict['whats new']
+            if (isinstance(dataDict['whats new'], basestring)):
+                formData[formNames['whatsNewName']] = dataDict['whats new']
+            elif (isinstance(dataDict['whats new'], dict)):
+                if ('file name format' in dataDict['whats new']):
+                    desc_filename_format = dataDict['whats new']['file name format']
+                    replace_language = ALIASES.language_aliases.get(languageCode, languageCode)
+                    descriptionFilePath = desc_filename_format.replace('{language}', replace_language)
+                    formData[formNames['whatsNewName']] = open(descriptionFilePath, 'r').read()
 
         if 'keywords' in dataDict:
-            formData[formNames['keywordsName']] = dataDict['keywords']
+            if (isinstance(dataDict['keywords'], basestring)):
+                formData[formNames['keywordsName']] = dataDict['keywords']
+            elif (isinstance(dataDict['keywords'], dict)):
+                if ('file name format' in dataDict['keywords']):
+                    desc_filename_format = dataDict['keywords']['file name format']
+                    replace_language = ALIASES.language_aliases.get(languageCode, languageCode)
+                    descriptionFilePath = desc_filename_format.replace('{language}', replace_language)
+                    formData[formNames['keywordsName']] = open(descriptionFilePath, 'r').read()
 
         if 'support url' in dataDict:
             formData[formNames['supportURLName']] = dataDict['support url']
@@ -299,7 +321,7 @@ class ITCApplication(object):
             self._images[device_type] = self.__imagesForDevice(device_type)
 
         logging.debug(self._images)
-        logging.debug(formData)
+        # logging.debug(formData)
 
         if 'images' in dataDict:
             imagesActions = dataDict['images']
@@ -316,6 +338,8 @@ class ITCApplication(object):
                 else:
                     continue
 
+                logging.debug("\n\n" + DEVICE_TYPE.deviceStrings[device_type] + "\n")
+
                 deviceImagesActions = imagesActions[dType]
                 if deviceImagesActions == "":
                     continue
@@ -325,18 +349,22 @@ class ITCApplication(object):
                     imageAction.setdefault('indexes')
                     cmd = imageAction['cmd']
                     indexes = imageAction['indexes']
+                    replace_language = ALIASES.language_aliases.get(languageCode, languageCode)
+                    replace_device = ALIASES.device_type_aliases.get(dType.lower(), DEVICE_TYPE.deviceStrings[device_type])
 
-                    imagePath = filename_format.replace('{language}', languageCode) \
-                           .replace('{device_type}', DEVICE_TYPE.deviceStrings[device_type])
+                    imagePath = filename_format.replace('{language}', replace_language) \
+                           .replace('{device_type}', replace_device)
                     logging.debug('Looking for images at ' + imagePath)
 
                     if (indexes == None) and ((cmd == 'u') or (cmd == 'r')):
                         indexes = []
                         for i in range(0, 5):
                             realImagePath = imagePath.replace("{index}", str(i + 1))
+                            logging.debug('img path: ' + realImagePath)
                             if os.path.exists(realImagePath):
                                 indexes.append(i + 1)
 
+                    logging.debug('indexes ' + indexes.__str__())
                     logging.debug('Processing command ' + imageAction.__str__())
 
                     if (cmd == 'd') or (cmd == 'r'): # delete or replace. To perform replace we need to delete images first
@@ -345,8 +373,8 @@ class ITCApplication(object):
                             deleteIndexes = [deleteIndexes[idx - 1] for idx in indexes]
 
                         for imageIndexToDelete in deleteIndexes:
-                            img = next(im for im in self._images[DEVICE_TYPE.iPhone5] if im['id'] == imageIndexToDelete)
-                            self.__deleteScreenshot(DEVICE_TYPE.iPhone5, img['id'])
+                            img = next(im for im in self._images[device_type] if im['id'] == imageIndexToDelete)
+                            self.__deleteScreenshot(device_type, img['id'])
 
                         self._images[device_type] = self.__imagesForDevice(device_type)
                     

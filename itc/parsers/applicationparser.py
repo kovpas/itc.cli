@@ -15,7 +15,10 @@ class ITCApplicationParser(BaseParser):
 
         # get 'manage in-app purchases' link
         manageInappsLink = htmlTree.xpath("//ul[@id='availableButtons']/li/a[.='Manage In-App Purchases']/@href")[0]
-        customerReviewsLink = htmlTree.xpath("//td[@class='value']/a[.='Customer Reviews']/@href")[0]
+        customerReviewsLinkTree = htmlTree.xpath("//td[@class='value']/a[.='Customer Reviews']/@href")
+        customerReviewsLink = None
+        if (len(customerReviewsLinkTree) > 0):
+            customerReviewsLink = customerReviewsLinkTree[0]
         logging.debug("Manage In-App purchases link: " + manageInappsLink)
         logging.debug("Customer reviews link: " + manageInappsLink)
 

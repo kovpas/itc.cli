@@ -1,7 +1,7 @@
 {
     "config": {
         "images": {
-            "filename format": "images/{language}/{device_type} {index}.png"
+            "file name format": "images/{language}/{device_type} {index}.png"
         }
     },
     "application": {
@@ -9,7 +9,7 @@
         "metadata": {
             "general" :{
                 "name"               : "My test application - default",
-                "whats new"          : "test cli - default",
+                "whats new"          : {"file name format": "app data/{language}/whats new.txt"},
                 "keywords"           : "keyword 1, keyword 2, default",
                 "support url"        : "http://support_url_default.com",
                 "marketing url"      : "http://marketing_url_default.com",

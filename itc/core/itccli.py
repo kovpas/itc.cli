@@ -61,6 +61,10 @@ def __parse_options(args):
 def __parse_configuration_file():
     if options.config_file != None:
         globals()['config'] = json.load(options.config_file)
+        ALIASES.language_aliases = globals()['config'].get('config', {}) \
+                                .get('language aliases', {})
+        ALIASES.device_type_aliases = globals()['config'].get('config', {}) \
+                                .get('device type aliases', {})
 
     return globals()['config']
 
@@ -152,7 +156,7 @@ def main():
     langActions = {}
     filename_format = cfg.get('config', {}) \
                            .get('images', {}) \
-                              .get('filename format', default_file_format)
+                              .get('file name format', default_file_format)
 
     for lang in specificLangCommands:
         langActions[languages.languageNameForId(lang)] = dict_merge(commonActions, specificLangCommands[lang])
@@ -166,7 +170,7 @@ def main():
             actions = langActions[lang]
             application.editVersion(actions, lang=lang, filename_format=filename_format)
 
-        for inappDict in applicationDict['inapps']:
+        for inappDict in applicationDict.get('inapps', {}):
             isIterable = inappDict['id'].find('{index}') != -1
             iteratorDict = inappDict.get('index iterator')
 

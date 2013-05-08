@@ -27,7 +27,7 @@ Installation
 ### Manual
 
 * Download sources somewhere on your computer
-* Install dependencies: [lxml](http://lxml.de/installation.html), [html5lib](http://code.google.com/p/html5lib/wiki/UserDocumentation), [requests](http://docs.python-requests.org/en/latest/user/install/)(v0.14.2), [docopt](https://github.com/docopt/docopt)(v0.6.1)
+* Install dependencies: [lxml](http://lxml.de/installation.html), [html5lib](http://code.google.com/p/html5lib/wiki/UserDocumentation), [requests](http://docs.python-requests.org/en/latest/user/install/) (v0.14.2), [docopt](https://github.com/docopt/docopt) (v0.6.1)
 * ````export PYTHONPATH=${PYTHONPATH}:/path/to/itc.cli/source/directory````
 * ````export PATH=${PATH}:/path/to/itc.cli/source/directory/itc/bin````
 
@@ -299,9 +299,10 @@ If ````from```` index is not provided, 1 is used. ````to```` index is mandatory.
 Logging
 =======  
 
-You may want to see additional logs. It is possible with -v and -vv options:
-```` ./itc/bin/itc -vv ...````
-```` -v ```` shows what itc is acually doing, ```` -vv ```` prints results of HTTP requests to a console.
+You may want to see additional logs. It is possible with ```` -v ```` and ```` -vv ```` options:  
+```` ./itc/bin/itc -vv ...````  
+```` -v ```` shows what itc is acually doing  
+```` -vv ```` prints results of HTTP requests to a console.
 
 There's also an option of silent mode, so only errors are printed to a console:
 ```` ./itc/bin/itc -s ...````

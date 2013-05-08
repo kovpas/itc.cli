@@ -18,8 +18,11 @@ cookie_file = os.path.join(temp_dir, cookie_file_name)
 cookie_jar = LWPCookieJar(cookie_file)
 
 class ALIASES:
-	language_aliases = {}
-	device_type_aliases = {}
+    language_aliases = {}
+    device_type_aliases = {}
+
+class config:
+    options = {}
 
 def __initCookies():
     if cookie_file:

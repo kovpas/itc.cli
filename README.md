@@ -21,6 +21,7 @@ Installation
 
 ### Automatic
 
+* Install [setuptools](https://pypi.python.org/pypi/setuptools)
 * Download sources somewhere on your computer
 * ````sudo python setup.py install````
 

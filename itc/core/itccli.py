@@ -1,3 +1,25 @@
+"""Command line interface for iTunesConnect (https://github.com/kovpas/itc.cli)
+
+Usage: itc [-h] [-v | -vv | -s] [-g [-aei]| -c FILE] [-u USERNAME] [-p PASSWORD]
+
+Options:
+  -h --help                   Print help (this message) and exit
+  -v --verbose                Verbose mode. Enables debug print to console.
+  -vv                         Enables HTTP response print to a console.
+  -s --silent                 Silent mode. Only error messages are printed.
+  -u --username USERNAME      iTunesConnect username.
+  -p --password PASSWORD      iTunesConnect password.
+  -g --generate-config        Generate initial configuration file based on current applications' state.
+                                If no --application-id provided, configuration files for all applications will be created.
+  -a --application-id         Application id to process. If --config-file provided and it contains 'application id',
+                                this property is be ignored.
+  -e --application-version    Application version to generate config.
+                                If not provided, config will be generated for latest version.
+  -i --generate-config-inapp  Generate config for inapps as well.
+  -c --config-file FILE       Configuration file. For more details on format see https://github.com/kovpas/itc.cli.
+
+"""
+
 import os
 import logging
 import platform
@@ -10,57 +32,36 @@ from argparse import ArgumentParser
 from itc.core.server import ITCServer
 from itc.util import *
 from itc.conf import *
+from docopt import docopt
 
 options = None
 config = {}
 
-def __parse_options(args):
-    parser = ArgumentParser(description='Command line interface for iTunesConnect.')
-    parser.add_argument('--debug', '-d', dest='debug', default=False, action='store_true',
-                       help='Debug output')
-    parser.add_argument('--username', '-u', dest='username', metavar='USERNAME',
-                       help='iTunesConnect username')
-    parser.add_argument('--password', '-p', dest='password', metavar='PASSWORD',
-                       help='iTunesConnect password')
-
-    group = parser.add_mutually_exclusive_group()
-
-    group.add_argument('--generate-config', '-g', dest='generate_config', default=False, action='store_true',
-                       help='Generate initial configuration file based on current applications\' state. \
-                       If no --application-id provided, configuration files for all applications will be created.')
-    group.add_argument('--config-file', '-c', dest='config_file', type=file,
-                       help='Configuration file. For more details on format see https://github.com/kovpas/itc.cli')
-
-    parser.add_argument('--application-version', '-e', dest='application_version', metavar='VERSION', default=None,
-                       help='Application version to generate config. \
-                       If not provided, config will be generated for latest version')
-    parser.add_argument('--application-id', '-a', dest='application_id', type=int, default=-1,
-                       help='Application id to process. If --config-file provided and it contains \'application id\', \
-                       this property is be ignored')
-    parser.add_argument('--generate-config-inapp', '-i', dest='generate_inapp', default=False, action='store_true',
-                       help='If this flag passed, inapps will be generated as well. This flag is ignored \
-                        if --generate-config is not provided')
-
-    parser.add_argument('--reviews', '-r', dest='reviews', default=False, action='store_true',
-                       help='Download reviews')
-
-
-    args = parser.parse_args(args)
+def __parse_options():
+    args = docopt(__doc__)
+    conf.config.options = args
     globals()['options'] = args
 
-    if args.debug == True:
+    if args['--verbose']:
         logging.basicConfig(level=logging.DEBUG)
-    else:
+    elif not args['--silent']:
         requests_log = logging.getLogger('requests')
         requests_log.setLevel(logging.WARNING)
         
         logging.basicConfig(level=logging.INFO)
+    else:
+        requests_log = logging.getLogger('requests')
+        requests_log.setLevel(logging.ERROR)
+        
+        logging.basicConfig(level=logging.ERROR)
+
+    logging.debug(args)
 
     return args
 
 def __parse_configuration_file():
-    if options.config_file != None:
-        globals()['config'] = json.load(options.config_file)
+    if options['--config-file'] != None:
+        globals()['config'] = json.load(options['--config-file'])
         ALIASES.language_aliases = globals()['config'].get('config', {}) \
                                 .get('language aliases', {})
         ALIASES.device_type_aliases = globals()['config'].get('config', {}) \
@@ -91,7 +92,7 @@ def main():
     if not os.path.exists(temp_dir):
         os.mkdir(temp_dir);
 
-    args = __parse_options(sys.argv[1:])
+    args = __parse_options()
     
     logging.debug('Python %s' % sys.version)
     logging.debug('Running on %s' % platform.platform())
@@ -100,15 +101,15 @@ def main():
 
     logging.debug('args %s' % args)
 
-    if options.username == None:
-        options.username = raw_input('Username: ')
+    if options['--username'] == None:
+        options['--username'] = raw_input('Username: ')
 
-    server = ITCServer(options.username, options.password)
+    server = ITCServer(options['--username'], options['--password'])
 
     if not server.isLoggedIn:
-        if options.password == None:
-            options.password = getpass.getpass()
-        server.login(password = options.password)
+        if options['--password'] == None:
+            options['--password'] = getpass.getpass()
+        server.login(password = options['--password'])
 
     if len(server.applications) == 0:
         server.fetchApplicationsList()
@@ -120,28 +121,28 @@ def main():
     logging.debug(server.applications)
     # logging.debug(options)
 
-    if options.generate_config:
-        if options.application_id:
-            if options.application_id in server.applications: 
+    if options['--generate-config']:
+        if options['--application-id']:
+            if options['--application-id'] in server.applications: 
                 applications = {}
-                applications[options.application_id] = server.applications[options.application_id]
+                applications[options['--application-id']] = server.applications[options['--application-id']]
             else:
-                logging.error('No application with id ' + str(options.application_id))
+                logging.error('No application with id ' + str(options['--application_id']))
                 return
         else:
             applications = server.applications
 
         for applicationId, application in applications.items():
-            application.generateConfig(options.application_version, generateInapps = options.generate_inapp)
+            application.generateConfig(options['--application_version'], generateInapps = options['--generate_inapp'])
 
         return
 
-    if options.reviews:
-        if not options.application_id in server.applications: 
-            logging.error("Provide correct application id (--application-id or -a option)")
-        else:
-            application = server.applications[options.application_id]
-            application.generateReviews(options.application_version)
+    # if options['--reviews']:
+    #     if not options['--application-id'] in server.applications: 
+    #         logging.error("Provide correct application id (--application-id or -a option)")
+    #     else:
+    #         application = server.applications[options['--application-id']]
+    #         application.generateReviews(options['--application-version'])
 
     cfg = __parse_configuration_file()
     if len(cfg) == 0:
@@ -149,7 +150,7 @@ def main():
         return
 
     applicationDict = cfg['application']
-    applicationId = applicationDict.get('id', options.application_id)
+    applicationId = applicationDict.get('id', options['--application-id'])
     application = None
     commonActions = applicationDict['metadata'].get('general', {})
     specificLangCommands = applicationDict['metadata']['languages']

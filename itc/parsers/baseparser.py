@@ -20,7 +20,7 @@ class BaseParser(object):
         if response == None:
             raise
 
-        if debugPrint:
+        if debugPrint or config.options['--verbose'] == 2:
             logging.debug(response.content)
 
         if response.status_code != 200:

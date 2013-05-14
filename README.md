@@ -334,7 +334,7 @@ Roadmap
 =======  
 
 There are several features planned to be implemented:  
-- [x] inapp purchases management  
-- [ ] promo codes  
-- [ ] sales reports  
-- [ ] user reviews  
+* ~~inapp purchases management~~  
+* promo codes  
+* sales reports  
+* user reviews  

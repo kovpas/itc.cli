@@ -59,7 +59,10 @@ Party begins with ````--config_file```` parameter:
 Config file format
 =======
 
-Config file is a simple JSON file (please note, that it's a _strict_ JSON. You must avoid constructions like **,]** or **,}** (i.e. ````[1,2,]```` or ````{"a":"avalue", "b": "bvalue",}````). If your config file contains errors, you'll get an exception with the exact position of a wrong character)
+Config file is a simple JSON file (please note, that it's a _strict_ JSON. You must avoid constructions like **,]** or **,}** (i.e. ````[1,2,]```` or ````{"a":"avalue", "b": "bvalue",}````). If your config file contains errors, you'll get an exception with the exact position of a wrong character).
+
+Metadata
+-------
 
 Commands object has two fields - 'general' and 'languages'. Script merges each language's object with 'general' object. For example:
 
@@ -196,13 +199,8 @@ Of course for each language you can specify exact indexes of replaced/deleted an
 
 In the example above, all iPad and pt/iPhone 5 screenshots will be uploaded by generic rule. The rest are specific for each language.
 
-Automagically generate config file
-=======
-
-With ````--generate-config```` parameter script creates json file ({application_id}.json), which contains metadata for each language of the application. In case if no ````--application-id```` parameter passed to script, it iterates through all the applications for current account.
-
 In-App purchases
-=======
+------
 
 At the moment, 4 of 5 inapp types are supported: 'Consumable', 'Non-Consumable', 'Free Subscription', 'Non-Renewing Subscription'
 
@@ -296,6 +294,30 @@ Another way is to create start and end indexes:
 ````
 
 If ````from```` index is not provided, 1 is used. ````to```` index is mandatory.
+
+Application review notes
+-------
+
+This part of configuration is self-explanatory 
+
+````JSON
+{
+  "app review information": {
+      "first name": "f name",
+      "last name": "l name",
+      "email address": "not_an_email@address.com",
+      "phone number": "+3101234567",
+      "review notes": {"file name format": "app data/Review notes.txt"}
+      "username" : "uname",
+      "password" : "pword",
+  }
+}
+````
+
+Automagically generate config file
+=======
+
+With ````--generate-config```` parameter script creates json file ({application_id}.json), which contains metadata for each language of the application. In case if no ````--application-id```` parameter passed to script, it iterates through all the applications for current account. If you want to include inapps into a generated configuration file, add ````--generate-config-inapp```` parameter.
 
 Logging
 =======  

@@ -1,6 +1,6 @@
 """Command line interface for iTunesConnect (https://github.com/kovpas/itc.cli)
 
-Usage: itc [-h] [-v | -vv | -s] [-g [-aei]| -c FILE] [-u USERNAME] [-p PASSWORD]
+Usage: itc [-h] [-v | -vv | -s] [-n] [-g [-e APP_VER] [-i] | -c FILE] [-a APP_ID] [-u USERNAME] [-p PASSWORD] 
 
 Options:
   -h --help                   Print help (this message) and exit
@@ -11,12 +11,13 @@ Options:
   -p --password PASSWORD      iTunesConnect password.
   -g --generate-config        Generate initial configuration file based on current applications' state.
                                 If no --application-id provided, configuration files for all applications will be created.
-  -a --application-id         Application id to process. If --config-file provided and it contains 'application id',
-                                this property is be ignored.
-  -e --application-version    Application version to generate config.
+  -e --application-version APP_VER  
+                              Application version to generate config.
                                 If not provided, config will be generated for latest version.
   -i --generate-config-inapp  Generate config for inapps as well.
   -c --config-file FILE       Configuration file. For more details on format see https://github.com/kovpas/itc.cli.
+  -a --application-id APP_ID  Application id to process. This property has more priority than 'application id' in configuration file.
+  -n --no-cookies             Remove saved authentication cookies and authenticate again.
 
 """
 
@@ -55,13 +56,12 @@ def __parse_options():
         
         logging.basicConfig(level=logging.ERROR)
 
-    logging.debug(args)
-
     return args
 
 def __parse_configuration_file():
     if options['--config-file'] != None:
-        globals()['config'] = json.load(options['--config-file'])
+        with open(options['--config-file']) as config_file:
+            globals()['config'] = json.load(config_file)
         ALIASES.language_aliases = globals()['config'].get('config', {}) \
                                 .get('language aliases', {})
         ALIASES.device_type_aliases = globals()['config'].get('config', {}) \
@@ -100,6 +100,14 @@ def main():
     logging.debug('Current Directory = %s' % os.getcwd())
 
     logging.debug('args %s' % args)
+
+    if options['--no-cookies']:
+        logging.debug('Deleting cookie file: ' + cookie_file)
+        if os.path.exists(cookie_file):
+            os.remove(cookie_file)
+            logging.info('Removed authentication cookies')
+        else:
+            logging.debug('Cookie file doesn\'t exist')
 
     if options['--username'] == None:
         options['--username'] = raw_input('Username: ')
@@ -150,7 +158,9 @@ def main():
         return
 
     applicationDict = cfg['application']
-    applicationId = applicationDict.get('id', options['--application-id'])
+    applicationId = applicationDict.get('id', -1)
+    if options['--application-id']:
+        applicationId = int(options['--application-id'])
     application = None
     commonActions = applicationDict['metadata'].get('general', {})
     specificLangCommands = applicationDict['metadata']['languages']
@@ -170,6 +180,11 @@ def main():
         for lang in langActions:
             actions = langActions[lang]
             application.editVersion(actions, lang=lang, filename_format=filename_format)
+
+        appReviewInfo = applicationDict.get('app review information', None)
+
+        if appReviewInfo != None:
+            application.editReviewInformation(appReviewInfo)
 
         for inappDict in applicationDict.get('inapps', {}):
             isIterable = inappDict['id'].find('{index}') != -1
@@ -238,4 +253,7 @@ def main():
                     inapp.update(inappIndexDict)
 
                 realindex += 1
-
+    else:
+        print server.applications
+        logging.error('No application with id ' + applicationId)
+        return

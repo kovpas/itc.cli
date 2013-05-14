@@ -77,23 +77,32 @@ class ITCApplication(object):
         result = None
 
         if statusURL:
-            status = requests.get(ITUNESCONNECT_URL + statusURL
-                                  , cookies=cookie_jar)
-            statusJSON = json.loads(status.content)
-            logging.debug(status.content)
-            result = []
+            attempts = 3
+            while attempts > 0 and result == None:
+                status = requests.get(ITUNESCONNECT_URL + statusURL
+                                      , cookies=cookie_jar)
+                statusJSON = None
+                try:
+                    statusJSON = json.loads(status.content)
+                except ValueError:
+                    logging.error('Can\'t parse status content. New attempt (%d of %d)' % (4 - attempts), attempts)
+                    attempts -= 1
+                    continue
 
-            for i in range(0, 5):
-                key = 'pictureFile_' + str(i + 1)
-                if key in statusJSON:
-                    image = {}
-                    pictureFile = statusJSON[key]
-                    image['url'] = pictureFile['url']
-                    image['orientation'] = pictureFile['orientation']
-                    image['id'] = pictureFile['pictureId']
-                    result.append(image)
-                else:
-                    break
+                logging.debug(status.content)
+                result = []
+
+                for i in range(0, 5):
+                    key = 'pictureFile_' + str(i + 1)
+                    if key in statusJSON:
+                        image = {}
+                        pictureFile = statusJSON[key]
+                        image['url'] = pictureFile['url']
+                        image['orientation'] = pictureFile['orientation']
+                        image['id'] = pictureFile['pictureId']
+                        result.append(image)
+                    else:
+                        break
 
         return result
 
@@ -153,6 +162,11 @@ class ITCApplication(object):
         tree = self._parser.parseTreeForURL(version['detailsLink'])
 
         return self._parser.parseCreateOrEditPage(tree, version, language)
+
+    def __parseAppReviewInformation(self, version):
+        tree = self._parser.parseTreeForURL(version['detailsLink'])
+
+        return self._parser.parseAppReviewInfoForm(tree)
 
     def __generateConfigForVersion(self, version):
         languagesDict = {}
@@ -224,6 +238,18 @@ class ITCApplication(object):
         with open(filename, 'wb') as fp:
             json.dump(resultDict, fp, sort_keys=False, indent=4, separators=(',', ': '))
 
+    def __dataFromStringOrFile(self, value, languageCode=None):
+        if (isinstance(value, basestring)):
+            return value
+        elif (isinstance(value, dict)):
+            if ('file name format' in value):
+                descriptionFilePath = value['file name format']
+                if languageCode != None:
+                    replace_language = ALIASES.language_aliases.get(languageCode, languageCode)
+                    descriptionFilePath = descriptionFilePath.replace('{language}', replace_language)
+                return open(descriptionFilePath, 'r').read()
+
+        return None
 
     def editVersion(self, dataDict, lang=None, versionString=None, filename_format=None):
         if dataDict == None or len(dataDict) == 0: # nothing to change
@@ -254,47 +280,14 @@ class ITCApplication(object):
         
         formData["save"] = "true"
 
-        if 'name' in dataDict:
-            formData[formNames['appNameName']] = dataDict['name']
-
-        if 'description' in dataDict:
-            if (isinstance(dataDict['description'], basestring)):
-                formData[formNames['descriptionName']] = dataDict['description']
-            elif (isinstance(dataDict['description'], dict)):
-                if ('file name format' in dataDict['description']):
-                    desc_filename_format = dataDict['description']['file name format']
-                    replace_language = ALIASES.language_aliases.get(languageCode, languageCode)
-                    descriptionFilePath = desc_filename_format.replace('{language}', replace_language)
-                    formData[formNames['descriptionName']] = open(descriptionFilePath, 'r').read()
-
-        if ('whatsNewName' in formNames) and ('whats new' in dataDict):
-            if (isinstance(dataDict['whats new'], basestring)):
-                formData[formNames['whatsNewName']] = dataDict['whats new']
-            elif (isinstance(dataDict['whats new'], dict)):
-                if ('file name format' in dataDict['whats new']):
-                    desc_filename_format = dataDict['whats new']['file name format']
-                    replace_language = ALIASES.language_aliases.get(languageCode, languageCode)
-                    descriptionFilePath = desc_filename_format.replace('{language}', replace_language)
-                    formData[formNames['whatsNewName']] = open(descriptionFilePath, 'r').read()
-
-        if 'keywords' in dataDict:
-            if (isinstance(dataDict['keywords'], basestring)):
-                formData[formNames['keywordsName']] = dataDict['keywords']
-            elif (isinstance(dataDict['keywords'], dict)):
-                if ('file name format' in dataDict['keywords']):
-                    desc_filename_format = dataDict['keywords']['file name format']
-                    replace_language = ALIASES.language_aliases.get(languageCode, languageCode)
-                    descriptionFilePath = desc_filename_format.replace('{language}', replace_language)
-                    formData[formNames['keywordsName']] = open(descriptionFilePath, 'r').read()
-
-        if 'support url' in dataDict:
-            formData[formNames['supportURLName']] = dataDict['support url']
-
-        if 'marketing url' in dataDict:
-            formData[formNames['marketingURLName']] = dataDict['marketing url']
-
-        if 'privacy policy url' in dataDict:
-            formData[formNames['pPolicyURLName']] = dataDict['privacy policy url']
+        formData[formNames['appNameName']]      = dataDict.get('name', metadata.formData[languageId]['appNameValue'])
+        formData[formNames['descriptionName']]  = self.__dataFromStringOrFile(dataDict.get('description', metadata.formData[languageId]['descriptionValue']), languageCode)
+        if 'whatsNewName' in formNames:
+            formData[formNames['whatsNewName']] = self.__dataFromStringOrFile(dataDict.get('whats new', metadata.formData[languageId]['whatsNewValue']), languageCode)
+        formData[formNames['keywordsName']]     = self.__dataFromStringOrFile(dataDict.get('keywords', metadata.formData[languageId]['keywordsValue']), languageCode)
+        formData[formNames['supportURLName']]   = dataDict.get('support url', metadata.formData[languageId]['supportURLValue'])
+        formData[formNames['marketingURLName']] = dataDict.get('marketing url', metadata.formData[languageId]['marketingURLValue'])
+        formData[formNames['pPolicyURLName']]   = dataDict.get('privacy policy url', metadata.formData[languageId]['pPolicyURLValue'])
 
         iphoneUploadScreenshotForm  = formNames['iphoneUploadScreenshotForm'] 
         iphone5UploadScreenshotForm = formNames['iphone5UploadScreenshotForm']
@@ -338,8 +331,6 @@ class ITCApplication(object):
                 else:
                     continue
 
-                logging.debug("\n\n" + DEVICE_TYPE.deviceStrings[device_type] + "\n")
-
                 deviceImagesActions = imagesActions[dType]
                 if deviceImagesActions == "":
                     continue
@@ -372,6 +363,8 @@ class ITCApplication(object):
                         if indexes != None:
                             deleteIndexes = [deleteIndexes[idx - 1] for idx in indexes]
 
+                        logging.debug('deleting images ' + deleteIndexes.__str__())
+                        
                         for imageIndexToDelete in deleteIndexes:
                             img = next(im for im in self._images[device_type] if im['id'] == imageIndexToDelete)
                             self.__deleteScreenshot(device_type, img['id'])
@@ -413,6 +406,7 @@ class ITCApplication(object):
                         self._images[device_type] = self.__imagesForDevice(device_type)
 
         formData['uploadSessionID'] = self._uploadSessionId
+        logging.debug(formData)
         # formData['uploadKey'] = self._uploadSessionData[DEVICE_TYPE.iPhone5]['key']
 
         postFormResponse = requests.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies=cookie_jar)
@@ -423,6 +417,50 @@ class ITCApplication(object):
         if len(postFormResponse.text) > 0:
             logging.error("Save information failed. " + postFormResponse.text)
 
+########## App Review Information management ##########
+
+    def editReviewInformation(self, appReviewInfo):
+        if appReviewInfo == None or len(appReviewInfo) == 0: # nothing to change
+            return
+
+        if len(self.versions) == 0:
+            self.getAppInfo()
+        if len(self.versions) == 0:
+            raise 'Can\'t get application versions'
+
+        versionString = next((versionString for versionString, version in self.versions.items() if version['editable']), None)
+        if versionString == None: # Suppose there's one or less editable versions
+            raise 'No editable version found'
+            
+        version = self.versions[versionString]
+        if not version['editable']:
+            raise 'Version ' + versionString + ' is not editable'
+
+        metadata = self.__parseAppReviewInformation(version)
+        formData = {}
+        formNames = metadata.formNames
+        submitAction = metadata.submitAction
+        
+        formData["save"] = "true"
+
+        formData[formNames['first name']]    = appReviewInfo.get('first name', metadata.formData['first name'])
+        formData[formNames['last name']]     = appReviewInfo.get('last name', metadata.formData['last name'])
+        formData[formNames['email address']] = appReviewInfo.get('email address', metadata.formData['email address'])
+        formData[formNames['phone number']]  = appReviewInfo.get('phone number', metadata.formData['phone number'])
+        formData[formNames['review notes']]  = self.__dataFromStringOrFile(appReviewInfo.get('review notes', metadata.formData['review notes']))
+        formData[formNames['username']]      = appReviewInfo.get('username', metadata.formData['username'])
+        formData[formNames['password']]      = appReviewInfo.get('password', metadata.formData['password'])
+
+        logging.debug(formData)
+        postFormResponse = requests.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies=cookie_jar)
+
+        if postFormResponse.status_code != 200:
+            raise 'Wrong response from iTunesConnect. Status code: ' + str(postFormResponse.status_code)
+
+        if len(postFormResponse.text) > 0:
+            logging.error("Save information failed. " + postFormResponse.text)
+
+################## In-App management ##################
 
     def __parseInappActionURLsFromScript(self, script):
         matches = re.findall('\'([^\']+)\'\s:\s\'([^\']+)\'', script)

@@ -42,6 +42,11 @@
                 }
             }
         },
+        "app review information": {
+            "username" : "uname",
+            "password" : "pword",
+            "review notes": {"file name format": "app data/Review notes.txt"}
+        },
         "inapps": [
             {
                 "index iterator": {

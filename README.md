@@ -50,14 +50,14 @@ INFO:root:Application found: "App 1" (123456789)
 INFO:root:Application found: "App 2" (987654321)  
 INFO:root:Nothing to do.
 
-Every time you run the script, it uses cookies which are stored in the file ````.itc-cli-cookies.txt```` and checks if cookies are still valid or script needs to log in again. That means that once you've entered your password, you don't need to enter it anymore as long as session is alive on iTunesConnect's servers. 
+Every time you run the script, it uses cookies which are stored in the file ````.itc-cli-cookies.txt```` and checks if cookies are still valid or script needs to log in again. That means that once you've entered your password, you don't need to enter it anymore as long as session is alive on iTunesConnect's servers. In case if you want to ignore cookie file and re-enter credentials, add ````--no-cookies```` parameter.
+
+Configuration file
+=======
 
 Party begins with ````--config_file```` parameter:
 
 ````itc --username apple_id --config-file actions.json````
-
-Config file format
-=======
 
 Config file is a simple JSON file (please note, that it's a _strict_ JSON. You must avoid constructions like **,]** or **,}** (i.e. ````[1,2,]```` or ````{"a":"avalue", "b": "bvalue",}````). If your config file contains errors, you'll get an exception with the exact position of a wrong character).
 

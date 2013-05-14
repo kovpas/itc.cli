@@ -119,19 +119,19 @@ There are four commands for updating images:
 * Sort ('s')
 * Replace ('r')
 
-### Delete  
+#### Delete  
 If ````indexes```` are provided, deletes images by selected indexes. Otherwise deletes all images
 
-### Upload  
+#### Upload  
 Uploads images. If ````indexes```` are provided, only images with selected indexes will be uploaded
 
-### Sort  
+#### Sort  
 Sorts images. ````indexes```` are mandatory for this command
 
-### Replace  
+#### Replace  
 Replaces existing images with new ones. If ````indexes```` are not provided, deletes all images and uploads new ones
 
-### How to select images to upload  
+#### How to select images to upload  
 There's an option in ````config```` section:
 ```` JSON
 {
@@ -334,7 +334,7 @@ Roadmap
 =======  
 
 There are several features planned to be implemented:  
-* ~~inapp purchases management~~  
-* promo codes  
-* sales reports  
-* user reviews  
+- [x] inapp purchases management  
+- [ ] promo codes  
+- [ ] sales reports  
+- [ ] user reviews  

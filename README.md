@@ -39,7 +39,7 @@ Usage
 
 ```` itc --username apple_id --password my_password````
 
-````--password```` parameter is not mandatory, so you can input password manually after script startup
+````--password```` parameter is not mandatory, so you can input password manually and securely after script startup
 
 If all dependencies installed properly, you will see something like this:
 
@@ -98,10 +98,12 @@ For Brasilian Portugese:
 
 You can also use files as a source of data for "whats new", "description" and "keywords":
 ```` JSON
+{
   "general" : {
       "name"               : "My application - default",
       "whats new"          : {"file name format": "app data/whats new - {language}.txt"},
   }
+}
 ````
 
 So, itc.cli during iteration through languages will replace {language} with appropriate language id (i.e. "pt", "en" and so on).

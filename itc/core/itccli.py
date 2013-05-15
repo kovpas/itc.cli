@@ -1,6 +1,6 @@
 """Command line interface for iTunesConnect (https://github.com/kovpas/itc.cli)
 
-Usage: itc [-h] [-v | -vv | -s] [-n] [-g [-e APP_VER] [-i] | -c FILE] [-a APP_ID] [-u USERNAME] [-p PASSWORD] 
+Usage: itc [-h] [-v | -vv | -s] [-n] [-g [-e APP_VER] [-i] | -c FILE] [-r] [-a APP_ID] [-u USERNAME] [-p PASSWORD] 
 
 Options:
   -h --help                   Print help (this message) and exit
@@ -18,6 +18,7 @@ Options:
   -c --config-file FILE       Configuration file. For more details on format see https://github.com/kovpas/itc.cli.
   -a --application-id APP_ID  Application id to process. This property has more priority than 'application id' in configuration file.
   -n --no-cookies             Remove saved authentication cookies and authenticate again.
+  -r --create-app             Create application.
 
 """
 
@@ -174,7 +175,14 @@ def main():
 
     logging.debug(langActions)
 
-    if applicationId in server.applications:
+    if applicationId not in server.applications and not options['--create-app']:
+        logging.info('No application with id ' + str(applicationId))
+        choice = raw_input('Do you want to create a new one? [y/n]')
+        options['--create-app'] = True if choice.strip().lower() in ('y', 'yes', '') else False
+
+    if options['--create-app']:
+        server.createNewApp(applicationDict)
+    elif applicationId in server.applications:
         application = server.applications[applicationId]
 
         for lang in langActions:
@@ -253,7 +261,3 @@ def main():
                     inapp.update(inappIndexDict)
 
                 realindex += 1
-    else:
-        print server.applications
-        logging.error('No application with id ' + applicationId)
-        return

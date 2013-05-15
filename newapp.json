@@ -1,0 +1,74 @@
+{
+    "config": {
+        "images": {
+            "file name format": "app data/7OL0.002.14.0_Europe_v1140/7OL0.002.00_Stores_WCEU_v1140/05_Localization_{language}/7OL0.002.14.0_Screenshot_{language}_S{index}_{device_type}_72_114000.png"
+        },
+        "device type aliases": {
+            "iphone": "640x960",
+            "iphone 5": "640x1136",
+            "ipad": "1024x748"
+        },
+        "language aliases": {
+            "en"   : "ENUS",
+            "en-GB": "ENUK",
+            "es"   : "ESES",
+            "de"   : "DE",
+            "fr"   : "FRFR",
+            "it"   : "IT",
+            "nl"   : "NL"
+        }
+    },
+    "application": {
+        "new app": {
+            "default language"  : "nl",
+            "name"              : "testapp8.itc.tomtom.com",
+            "sku number"        : "testapp8.itc.tomtom.com",
+            "bundle id"         : "com.tomtom.*",
+            "bundle id suffix"  : "testapp8.itc.tomtom.com",
+            "availability date" : "Jan 01 2014",
+            "price tier"        : 2,
+            "discount"          : true,
+            "version"           : "1.0",
+            "copyright"         : "TomTom",
+            "primary category"  : "News",
+            "secondary category": "Finance",
+            "rating string"     : [0, 1, 0, 1, 2, 0, 1, 2],
+            "large app icon"    : {"file name format": "app data/icon.png"}
+        },
+        "metadata": {
+            "languages" : {
+                "en" : {
+                },
+                "en-GB" : {
+                },
+                "es": {
+                },
+                "de": {
+                },
+                "fr": {
+                },
+                "it": {
+                },
+                "nl": {
+                    "name"               : "testapp8.itc.tomtom.com",
+                    "description"        : {"file name format": "app data/7OL0.002.14.0_Europe_v1140/7OL0.002.00_Stores_WCEU_v1140/05_Localization_{language}/7OL0.002.14.0_AppDesc_{language}_114000.txt"},
+                    "support url"        : "http://support_url_default.com",
+                    "marketing url"      : "http://marketing_url_default.com",
+                    "privacy policy url" : "http://support_url_default.com",
+                    "images": {
+                        "iphone"  : [{"cmd": "d"}, {"cmd": "u", "indexes": [0, 1, 2, 3, 4]}],
+                        "iphone 5": [{"cmd": "d"}, {"cmd": "u", "indexes": [0, 1, 2, 3, 4]}],
+                        "ipad"    : [{"cmd": "d"}, {"cmd": "u", "indexes": [0, 1, 2, 3, 4]}]
+                    }
+                }
+            }
+        },
+        "app review information": {
+            "first name"  : "fname",
+            "last name"   : "lname",
+            "email address": "email@address.com",
+            "phone number": "+3160123456",
+            "review notes": {"file name format": "app data/7OL0.002.14.0_Europe_v1140/7OL0.002.00_Stores_WCEU_v1140/05_Localization_ENUS/7OL0.002.14.0_DemoText_ENUS_114000.txt"}
+        }
+    }
+}

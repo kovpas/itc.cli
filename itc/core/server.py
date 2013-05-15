@@ -80,3 +80,12 @@ class ITCServer(object):
 
             application = ITCApplication(name=name, applicationId=applicationId, link=link)
             self.applications[applicationId] = application
+
+    def createNewApp(self, appDictionary=None):
+        if appDictionary == None or len(appDictionary) == 0 or 'new app' not in appDictionary: # no data to create app from
+            return
+
+        metadata = self._parser.parseFirstAppCreatePageForm()
+        print metadata
+        
+

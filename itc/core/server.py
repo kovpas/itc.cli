@@ -1,14 +1,19 @@
 import os
 import logging
+from datetime import datetime
 
 import requests
 
 from itc.core.application import ITCApplication
 from itc.parsers.serverparser import ITCServerParser
+from itc.core.baseobject import ITCImageUploader
+from itc.util import languages
 from itc.conf import *
 
-class ITCServer(object):
+class ITCServer(ITCImageUploader):
     def __init__(self, username, password):
+        super(ITCServer, self).__init__()
+
         self._info                  = {'username': username, 'password': password}
         self._loginPageURL          = ITUNESCONNECT_MAIN_PAGE_URL
         self._parser                = ITCServerParser()
@@ -85,7 +90,67 @@ class ITCServer(object):
         if appDictionary == None or len(appDictionary) == 0 or 'new app' not in appDictionary: # no data to create app from
             return
 
+        newAppMetadata = appDictionary['new app']
         metadata = self._parser.parseFirstAppCreatePageForm()
-        print metadata
+        formData = {}
+        formNames = metadata.formNames
+        submitAction = metadata.submitAction
         
+        formData[formNames['default language']] = metadata.languageIds[languages.languageNameForId(newAppMetadata['default language'])]
+        formData[formNames['app name']]         = newAppMetadata['name']
+        formData[formNames['sku number']]       = newAppMetadata['sku number']
+        formData[formNames['bundle id suffix']] = newAppMetadata['bundle id suffix']
+        formData[formNames['bundle id']]        = next(value for (key, value) in metadata.bundleIds.iteritems() if key.endswith(' - ' + newAppMetadata['bundle id']))
+        
+        formData[formNames['continue action'] + '.x'] = "0"
+        formData[formNames['continue action'] + '.y'] = "0"
 
+        logging.debug(formData)
+        postFormResponse = requests.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies=cookie_jar)
+
+        if postFormResponse.status_code != 200:
+            raise 'Wrong response from iTunesConnect. Status code: ' + str(postFormResponse.status_code)
+
+        metadata = self._parser.parseSecondAppCreatePageForm(postFormResponse.text)
+        formData = {}
+        formNames = metadata.formNames
+        submitAction = metadata.submitAction
+        date = datetime.strptime(newAppMetadata['availability date'], '%b %d %Y')
+
+        formData[formNames['date day']]   = date.day - 1
+        formData[formNames['date month']] = date.month - 1
+        formData[formNames['date year']]  = date.year - datetime.today().year
+        formData[formNames['price tier']] = newAppMetadata['price tier']
+        if 'discount' in newAppMetadata and newAppMetadata['discount']:
+            formData[formNames['discount']] = formNames['discount']
+
+        include = 'countries' in newAppMetadata \
+            and isinstance(newAppMetadata['countries'], dict) \
+            and 'type' in newAppMetadata['countries'] and newAppMetadata['countries']['type'] == 'include' \
+            and 'list' in newAppMetadata['countries']
+        exclude = 'countries' in newAppMetadata \
+            and isinstance(newAppMetadata['countries'], dict) \
+            and 'type' in newAppMetadata['countries'] and newAppMetadata['countries']['type'] == 'exclude' \
+            and 'list' in newAppMetadata['countries']
+
+        if include:
+            for country in newAppMetadata['countries']['list']:
+                logging.debug("Including " + country)
+                formData[metadata.countries[country]] = metadata.countries[country]
+        else:
+            for country, val in metadata.countries.items():
+                if not exclude or country not in newAppMetadata['countries']['list']:
+                    formData[val] = val
+                else:
+                    logging.debug("Excluding " + country)
+
+
+        formData[formNames['continue action'] + '.x'] = "0"
+        formData[formNames['continue action'] + '.y'] = "0"
+
+        postFormResponse = requests.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies=cookie_jar)
+
+        if postFormResponse.status_code != 200:
+            raise 'Wrong response from iTunesConnect. Status code: ' + str(postFormResponse.status_code)
+
+        logging.debug(postFormResponse.text)

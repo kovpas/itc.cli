@@ -93,7 +93,7 @@ class ITCServerParser(BaseParser):
             self.__getInternalURLs()
 
         formNames = {}
-        AppMetadata = namedtuple('AppMetadata', ['formNames', 'submitAction', 'languageIds', 'bundleIds'])
+        AppMetadata = namedtuple('AppMetadata', ['formNames', 'submitAction', 'languageIds', 'bundleIds', 'selectedLanguageId'])
 
         createAppTree = self.parseTreeForURL(self._createAppURL)
         createAppForm = createAppTree.xpath("//form[@id='mainForm']")[0]
@@ -104,20 +104,54 @@ class ITCServerParser(BaseParser):
         formNames['sku number']       = createAppForm.xpath("//div/label[.='SKU Number']/..//input/@name")[0]
         formNames['bundle id']        = createAppForm.xpath("//select[@id='primary-popup']/@name")[0]
         formNames['bundle id suffix'] = createAppForm.xpath("//div/label[.='Bundle ID Suffix']/..//input/@name")[0]
+        formNames['continue action']  = createAppForm.xpath("//input[@class='continueActionButton']/@name")[0]
 
         languageIds = {}
         languageIdOptions = createAppForm.xpath("//select[@id='default-language-popup']/option")
+        selectedLanguageId = '-1'
         for langIdOption in languageIdOptions:
-            languageIds[langIdOption.text.strip()] = langIdOption.attrib['value']
+            if langIdOption.text.strip() != 'Select':
+                languageIds[langIdOption.text.strip()] = langIdOption.attrib['value']
+                if 'selected' in langIdOption.attrib:
+                    selectedLanguageId = langIdOption.attrib['value']
+
 
         bundleIds = {}
         bundleIdOptions = createAppForm.xpath("//select[@id='primary-popup']/option")
         for bundIdOption in bundleIdOptions:
-            bundleIds[bundIdOption.text.strip()] = bundIdOption.attrib['value']
+            if bundIdOption.text.strip() != 'Select':
+                bundleIds[bundIdOption.text.strip()] = bundIdOption.attrib['value']
 
         metadata = AppMetadata(formNames=formNames
                              , submitAction=submitAction
                              , languageIds=languageIds
-                             , bundleIds=bundleIds)
+                             , bundleIds=bundleIds
+                             , selectedLanguageId=selectedLanguageId)
+
+        return metadata
+
+    def parseSecondAppCreatePageForm(self, pageText):
+        formNames = {}
+        AppMetadata = namedtuple('AppMetadata', ['formNames', 'submitAction', 'countries'])
+
+        createAppTree = self.parser.parse(pageText)
+        createAppForm = createAppTree.xpath("//form[@id='mainForm']")[0]
+        submitAction = createAppForm.attrib['action']
+
+        formNames['date day']   = createAppForm.xpath("//span[@class='date-select-day']/select/@name")[0]
+        formNames['date month'] = createAppForm.xpath("//span[@class='date-select-month']/select/@name")[0]
+        formNames['date year']  = createAppForm.xpath("//span[@class='date-select-year']/select/@name")[0]
+        formNames['price tier'] = createAppForm.xpath("//span[@id='pricingTierUpdateContainer']/select/@name")[0]
+        formNames['discount']   = createAppForm.xpath("//input[@id='education-checkbox']/@name")[0]
+        formNames['continue action']  = createAppForm.xpath("//input[@class='continueActionButton']/@name")[0]
+
+        countries = {}
+        countryInputs = createAppForm.xpath("//table[@id='countries-list']//input[@class='country-checkbox']/../..")
+        for countryInput in countryInputs:
+            countries[countryInput.xpath("td")[0].text.strip()] = countryInput.xpath("td/input[@class='country-checkbox']")[0].attrib['value']
+
+        metadata = AppMetadata(formNames=formNames
+                             , submitAction=submitAction
+                             , countries=countries)
 
         return metadata

@@ -127,7 +127,9 @@ def main():
         return
         
     logging.debug(server.applications)
-    # logging.debug(options)
+    if options['--application-id']:
+        options['--application-id'] = int(options['--application-id'])
+
 
     if options['--generate-config']:
         if options['--application-id']:
@@ -135,13 +137,13 @@ def main():
                 applications = {}
                 applications[options['--application-id']] = server.applications[options['--application-id']]
             else:
-                logging.error('No application with id ' + str(options['--application_id']))
+                logging.error('No application with id ' + str(options['--application-id']))
                 return
         else:
             applications = server.applications
 
         for applicationId, application in applications.items():
-            application.generateConfig(options['--application_version'], generateInapps = options['--generate_inapp'])
+            application.generateConfig(options['--application-version'], generateInapps = options['--generate-config-inapp'])
 
         return
 

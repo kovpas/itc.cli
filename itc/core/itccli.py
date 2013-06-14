@@ -1,11 +1,12 @@
 """Command line interface for iTunesConnect (https://github.com/kovpas/itc.cli)
 
-Usage: itc [-h] [-v | -vv | -s] [-n] [-g [-e APP_VER] [-i] | -c FILE] [-a APP_ID] [-u USERNAME] [-p PASSWORD] 
+Usage: itc [-h] [-v | -vv [-f] | -s] [-n] [-z] [-g [-e APP_VER] [-i] | -c FILE] [-a APP_ID] [-u USERNAME] [-p PASSWORD] 
 
 Options:
   -h --help                   Print help (this message) and exit
   -v --verbose                Verbose mode. Enables debug print to console.
   -vv                         Enables HTTP response print to a console.
+  -f                          Nicely format printed html response.
   -s --silent                 Silent mode. Only error messages are printed.
   -u --username USERNAME      iTunesConnect username.
   -p --password PASSWORD      iTunesConnect password.
@@ -18,6 +19,7 @@ Options:
   -c --config-file FILE       Configuration file. For more details on format see https://github.com/kovpas/itc.cli.
   -a --application-id APP_ID  Application id to process. This property has more priority than 'application id' in configuration file.
   -n --no-cookies             Remove saved authentication cookies and authenticate again.
+  -z                          Automatically click 'Continue' button if appears after login.
 
 """
 

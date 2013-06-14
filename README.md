@@ -28,7 +28,7 @@ Installation
 ### Manual
 
 * Download sources somewhere on your computer
-* Install dependencies: [lxml](http://lxml.de/installation.html), [html5lib](http://code.google.com/p/html5lib/wiki/UserDocumentation), [requests](http://docs.python-requests.org/en/latest/user/install/) (v0.14.2), [docopt](https://github.com/docopt/docopt) (v0.6.1)
+* Install dependencies: [lxml](http://lxml.de/installation.html), [html5lib](http://code.google.com/p/html5lib/wiki/UserDocumentation), [requests](http://docs.python-requests.org/en/latest/user/install/) (v0.14.2), [docopt](https://github.com/docopt/docopt) (v0.6.1), [beautifulsoup](http://www.crummy.com/software/BeautifulSoup/) (v4.2.1)
 * ````export PYTHONPATH=${PYTHONPATH}:/path/to/itc.cli/source/directory````
 * ````export PATH=${PATH}:/path/to/itc.cli/source/directory/itc/bin````
 
@@ -39,7 +39,7 @@ Usage
 
 ```` itc --username apple_id --password my_password````
 
-````--password```` parameter is not mandatory, so you can input password manually after script startup
+````--password```` parameter is not mandatory, so you can input password manually and securely after script startup
 
 If all dependencies installed properly, you will see something like this:
 
@@ -50,16 +50,19 @@ INFO:root:Application found: "App 1" (123456789)
 INFO:root:Application found: "App 2" (987654321)  
 INFO:root:Nothing to do.
 
-Every time you run the script, it uses cookies which are stored in the file ````.itc-cli-cookies.txt```` and checks if cookies are still valid or script needs to log in again. That means that once you've entered your password, you don't need to enter it anymore as long as session is alive on iTunesConnect's servers. 
+Every time you run the script, it uses cookies which are stored in the file ````.itc-cli-cookies.txt```` and checks if cookies are still valid or script needs to log in again. That means that once you've entered your password, you don't need to enter it anymore as long as session is alive on iTunesConnect's servers. In case if you want to ignore cookie file and re-enter credentials, add ````--no-cookies```` parameter.
+
+Configuration file
+=======
 
 Party begins with ````--config_file```` parameter:
 
 ````itc --username apple_id --config-file actions.json````
 
-Config file format
-=======
+Config file is a simple JSON file (please note, that it's a _strict_ JSON. You must avoid constructions like **,]** or **,}** (i.e. ````[1,2,]```` or ````{"a":"avalue", "b": "bvalue",}````). If your config file contains errors, you'll get an exception with the exact position of a wrong character).
 
-Config file is a simple JSON file (please note, that it's a _strict_ JSON. You must avoid constructions like **,]** or **,}** (i.e. ````[1,2,]```` or ````{"a":"avalue", "b": "bvalue",}````). If your config file contains errors, you'll get an exception with the exact position of a wrong character)
+Metadata
+-------
 
 Commands object has two fields - 'general' and 'languages'. Script merges each language's object with 'general' object. For example:
 
@@ -95,10 +98,12 @@ For Brasilian Portugese:
 
 You can also use files as a source of data for "whats new", "description" and "keywords":
 ```` JSON
+{
   "general" : {
       "name"               : "My application - default",
       "whats new"          : {"file name format": "app data/whats new - {language}.txt"},
   }
+}
 ````
 
 So, itc.cli during iteration through languages will replace {language} with appropriate language id (i.e. "pt", "en" and so on).
@@ -116,19 +121,19 @@ There are four commands for updating images:
 * Sort ('s')
 * Replace ('r')
 
-### Delete  
+#### Delete  
 If ````indexes```` are provided, deletes images by selected indexes. Otherwise deletes all images
 
-### Upload  
+#### Upload  
 Uploads images. If ````indexes```` are provided, only images with selected indexes will be uploaded
 
-### Sort  
+#### Sort  
 Sorts images. ````indexes```` are mandatory for this command
 
-### Replace  
+#### Replace  
 Replaces existing images with new ones. If ````indexes```` are not provided, deletes all images and uploads new ones
 
-### How to select images to upload  
+#### How to select images to upload  
 There's an option in ````config```` section:
 ```` JSON
 {
@@ -196,13 +201,8 @@ Of course for each language you can specify exact indexes of replaced/deleted an
 
 In the example above, all iPad and pt/iPhone 5 screenshots will be uploaded by generic rule. The rest are specific for each language.
 
-Automagically generate config file
-=======
-
-With ````--generate-config```` parameter script creates json file ({application_id}.json), which contains metadata for each language of the application. In case if no ````--application-id```` parameter passed to script, it iterates through all the applications for current account.
-
 In-App purchases
-=======
+------
 
 At the moment, 4 of 5 inapp types are supported: 'Consumable', 'Non-Consumable', 'Free Subscription', 'Non-Renewing Subscription'
 
@@ -297,6 +297,30 @@ Another way is to create start and end indexes:
 
 If ````from```` index is not provided, 1 is used. ````to```` index is mandatory.
 
+Application review notes
+-------
+
+This part of configuration is self-explanatory 
+
+````JSON
+{
+  "app review information": {
+      "first name": "f name",
+      "last name": "l name",
+      "email address": "not_an_email@address.com",
+      "phone number": "+3101234567",
+      "review notes": {"file name format": "app data/Review notes.txt"}
+      "username" : "uname",
+      "password" : "pword",
+  }
+}
+````
+
+Automagically generate config file
+=======
+
+With ````--generate-config```` parameter script creates json file ({application_id}.json), which contains metadata for each language of the application. In case if no ````--application-id```` parameter passed to script, it iterates through all the applications for current account. If you want to include inapps into a generated configuration file, add ````--generate-config-inapp```` parameter.
+
 Logging
 =======  
 
@@ -304,6 +328,7 @@ You may want to see additional logs. It is possible with ```` -v ```` and ```` -
 ```` ./itc/bin/itc -vv ...````  
 ```` -v ```` shows what itc is acually doing  
 ```` -vv ```` prints results of HTTP requests to a console.
+```` -f ```` nicely formats html response. May be used only with -vv option.
 
 There's also an option of silent mode, so only errors are printed to a console:
 ```` ./itc/bin/itc -s ...````

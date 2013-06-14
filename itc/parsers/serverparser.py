@@ -18,7 +18,10 @@ class ITCServerParser(BaseParser):
         passwordInput = htmlTree.xpath("//input[@name='theAccountPW']")
 
         if not ((len(usernameInput) == 1) and (len(passwordInput) == 1)):
-            self.parseSessionURLs(htmlTree)
+            try:
+                self.parseSessionURLs(htmlTree)
+            except:
+                return False
             return True
 
         return False
@@ -76,3 +79,10 @@ class ITCServerParser(BaseParser):
             result.append(ApplicationData(name=name, link=link, applicationId=applicationId))
 
         return result
+
+    def loginContinueButton(self, htmlTree):
+        continueButtonLink = htmlTree.xpath("//img[@class='customActionButton']/..")
+        if len(continueButtonLink) == 0:
+            return None
+
+        return continueButtonLink[0].attrib['href']

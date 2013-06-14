@@ -1,22 +1,25 @@
 """Command line interface for iTunesConnect (https://github.com/kovpas/itc.cli)
 
-Usage: itc [-h] [-v | -vv | -s] [-g [-aei]| -c FILE] [-u USERNAME] [-p PASSWORD]
+Usage: itc [-h] [-v | -vv [-f] | -s] [-n] [-z] [-g [-e APP_VER] [-i] | -c FILE] [-a APP_ID] [-u USERNAME] [-p PASSWORD] 
 
 Options:
   -h --help                   Print help (this message) and exit
   -v --verbose                Verbose mode. Enables debug print to console.
   -vv                         Enables HTTP response print to a console.
+  -f                          Nicely format printed html response.
   -s --silent                 Silent mode. Only error messages are printed.
   -u --username USERNAME      iTunesConnect username.
   -p --password PASSWORD      iTunesConnect password.
   -g --generate-config        Generate initial configuration file based on current applications' state.
                                 If no --application-id provided, configuration files for all applications will be created.
-  -a --application-id         Application id to process. If --config-file provided and it contains 'application id',
-                                this property is be ignored.
-  -e --application-version    Application version to generate config.
+  -e --application-version APP_VER  
+                              Application version to generate config.
                                 If not provided, config will be generated for latest version.
   -i --generate-config-inapp  Generate config for inapps as well.
   -c --config-file FILE       Configuration file. For more details on format see https://github.com/kovpas/itc.cli.
+  -a --application-id APP_ID  Application id to process. This property has more priority than 'application id' in configuration file.
+  -n --no-cookies             Remove saved authentication cookies and authenticate again.
+  -z                          Automatically click 'Continue' button if appears after login.
 
 """
 
@@ -55,13 +58,12 @@ def __parse_options():
         
         logging.basicConfig(level=logging.ERROR)
 
-    logging.debug(args)
-
     return args
 
 def __parse_configuration_file():
     if options['--config-file'] != None:
-        globals()['config'] = json.load(options['--config-file'])
+        with open(options['--config-file']) as config_file:
+            globals()['config'] = json.load(config_file)
         ALIASES.language_aliases = globals()['config'].get('config', {}) \
                                 .get('language aliases', {})
         ALIASES.device_type_aliases = globals()['config'].get('config', {}) \
@@ -101,6 +103,14 @@ def main():
 
     logging.debug('args %s' % args)
 
+    if options['--no-cookies']:
+        logging.debug('Deleting cookie file: ' + cookie_file)
+        if os.path.exists(cookie_file):
+            os.remove(cookie_file)
+            logging.info('Removed authentication cookies')
+        else:
+            logging.debug('Cookie file doesn\'t exist')
+
     if options['--username'] == None:
         options['--username'] = raw_input('Username: ')
 
@@ -119,7 +129,9 @@ def main():
         return
         
     logging.debug(server.applications)
-    # logging.debug(options)
+    if options['--application-id']:
+        options['--application-id'] = int(options['--application-id'])
+
 
     if options['--generate-config']:
         if options['--application-id']:
@@ -127,13 +139,13 @@ def main():
                 applications = {}
                 applications[options['--application-id']] = server.applications[options['--application-id']]
             else:
-                logging.error('No application with id ' + str(options['--application_id']))
+                logging.error('No application with id ' + str(options['--application-id']))
                 return
         else:
             applications = server.applications
 
         for applicationId, application in applications.items():
-            application.generateConfig(options['--application_version'], generateInapps = options['--generate_inapp'])
+            application.generateConfig(options['--application-version'], generateInapps = options['--generate-config-inapp'])
 
         return
 
@@ -150,7 +162,9 @@ def main():
         return
 
     applicationDict = cfg['application']
-    applicationId = applicationDict.get('id', options['--application-id'])
+    applicationId = applicationDict.get('id', -1)
+    if options['--application-id']:
+        applicationId = int(options['--application-id'])
     application = None
     commonActions = applicationDict['metadata'].get('general', {})
     specificLangCommands = applicationDict['metadata']['languages']
@@ -170,6 +184,11 @@ def main():
         for lang in langActions:
             actions = langActions[lang]
             application.editVersion(actions, lang=lang, filename_format=filename_format)
+
+        appReviewInfo = applicationDict.get('app review information', None)
+
+        if appReviewInfo != None:
+            application.editReviewInformation(appReviewInfo)
 
         for inappDict in applicationDict.get('inapps', {}):
             isIterable = inappDict['id'].find('{index}') != -1
@@ -238,4 +257,7 @@ def main():
                     inapp.update(inappIndexDict)
 
                 realindex += 1
-
+    else:
+        print server.applications
+        logging.error('No application with id ' + applicationId)
+        return

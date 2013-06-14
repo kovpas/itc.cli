@@ -145,3 +145,40 @@ class ITCApplicationParser(BaseParser):
 
         return metadata
 
+    def parseAppReviewInfoForm(self, tree):
+        logging.info('Updating application review informtaion')
+
+        AppReviewInfo = namedtuple('AppReviewInfo', ['formData', 'formNames', 'submitAction'])
+
+        appReviewLightboxAction = tree.xpath("//div[@id='reviewInfoLightbox']/@action")[0]
+        editTree = self.parseTreeForURL(appReviewLightboxAction + "?open=true")
+
+        formNames = {}
+        formData = {}
+
+        formNames['first name']       = editTree.xpath("//div/label[.='First Name']/..//input/@name")[0]
+        formNames['last name']        = editTree.xpath("//div/label[.='Last Name']/..//input/@name")[0]
+        formNames['email address']    = editTree.xpath("//div/label[.='Email Address']/..//input/@name")[0]
+        formNames['phone number']     = editTree.xpath("//div/label[.='Phone Number']/..//input/@name")[0]
+
+        formNames['review notes']     = editTree.xpath("//div[@id='reviewnotes']//textarea/@name")[0]
+
+        formNames['username']         = editTree.xpath("//div/label[.='Username']/..//input/@name")[0]
+        formNames['password']         = editTree.xpath("//div/label[.='Password']/..//input/@name")[0]
+
+        formData['first name']        = getElement(editTree.xpath("//div/label[.='First Name']/..//input/@value"), 0)
+        formData['last name']         = getElement(editTree.xpath("//div/label[.='Last Name']/..//input/@value"), 0)
+        formData['email address']     = getElement(editTree.xpath("//div/label[.='Email Address']/..//input/@value"), 0)
+        formData['phone number']      = getElement(editTree.xpath("//div/label[.='Phone Number']/..//input/@value"), 0)
+        formData['review notes']      = getElement(editTree.xpath("//div[@id='reviewnotes']//textarea/@value"), 0)
+        formData['username']          = getElement(editTree.xpath("//div/label[.='Username']/..//input/@value"), 0)
+        formData['password']          = getElement(editTree.xpath("//div/label[.='Password']/..//input/@value"), 0)
+
+        submitAction = editTree.xpath("//div[@class='lcAjaxLightboxContentsWrapper']/div[@class='lcAjaxLightboxContents']/@action")[0]
+
+        metadata = AppReviewInfo(formData=formData
+                               , formNames=formNames
+                               , submitAction=submitAction)
+        return metadata
+
+        

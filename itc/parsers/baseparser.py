@@ -1,6 +1,7 @@
 import logging
 
 import requests
+from bs4 import BeautifulSoup
 
 from itc.parsers import htmlParser
 from itc.conf import *
@@ -21,7 +22,10 @@ class BaseParser(object):
             raise
 
         if debugPrint or config.options['--verbose'] == 2:
-            logging.debug(response.content)
+            if (config.options['-f']):
+                logging.debug(BeautifulSoup(response.content).prettify())
+            else:
+                logging.debug(response.content)
 
         if response.status_code != 200:
             logging.error('Wrong response from itunesconnect. Status code: ' + str(response.status_code) + '. Content:\n' + response.text)

@@ -60,6 +60,15 @@ class ITCServer(object):
         mainPageTree = self._parser.parseTreeForURL(actionURL, method="POST", payload=payload)
 
         self.isLoggedIn = self.__checkLogin(mainPageTree=mainPageTree);
+        if not self.isLoggedIn:
+            continueHref = self._parser.loginContinueButton(mainPageTree)
+            if continueHref != None and config.options['-z']:
+                mainPageTree = self._parser.parseTreeForURL(continueHref)
+                self.isLoggedIn = self.__checkLogin(mainPageTree=mainPageTree);
+            elif continueHref != None:
+                raise Exception('Cannot continue: There\'s a form after login, which needs your attention.\n\t\tPlease, use -z command line option in order to suppress this check and automatically continue.')
+
+
         if self.isLoggedIn:
             logging.info("Login: logged in. Session cookies are saved to " + cookie_file)
             logging.debug(cookie_jar)

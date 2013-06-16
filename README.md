@@ -324,8 +324,10 @@ With ````generate```` command script creates json file ({application_id}.json), 
 Promo codes
 =======
 
-With ````promo```` command, script generates a certain amount of promocodes for a specified version and either prints them to console or writes to a file:  
+With ````promo```` command, script generates a certain amount of promocodes for a specified application and either prints them to console or writes to a file:  
 ````./itc/bin/itc promo 3 -a APP_ID -o promocodes.txt````
+
+Please note, that 'Ready for Sale' version must exist for application.
 
 Logging
 =======  

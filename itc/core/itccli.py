@@ -3,6 +3,7 @@
 Usage: 
     itc update [-c FILE] [-a APP_ID] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc generate [-a APP_ID] [-e APP_VER] [-i] [-c FILE] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc promo -a APP_ID [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE] <amount>
     itc (-h | --help)
 
 Commands:
@@ -29,6 +30,7 @@ Options:
                                 in configuration file.
   -n --no-cookies             Remove saved authentication cookies and authenticate again.
   -z                          Automatically click 'Continue' button if appears after login.
+  -o --output-file FILE       Name of file to save promocodes to.
 
 """
 
@@ -157,12 +159,19 @@ def main():
 
         return
 
-    # if options['--reviews']:
-    #     if not options['--application-id'] in server.applications: 
-    #         logging.error("Provide correct application id (--application-id or -a option)")
-    #     else:
-    #         application = server.applications[options['--application-id']]
-    #         application.generateReviews(options['--application-version'])
+    if options['promo']:
+        if not options['--application-id'] in server.applications: 
+            logging.error("Provide correct application id (--application-id or -a option)")
+        else:
+            application = server.applications[options['--application-id']]
+            promocodes = application.getPromocodes(options['<amount>'])
+            if options['--output-file']:
+                with open(options['--output-file'], 'a') as outFile:
+                    outFile.write(promocodes)
+            else: # just print to console. Using print as we want to suppress silence option
+                print promocodes
+
+        return
 
     cfg = __parse_configuration_file()
     if len(cfg) == 0:

@@ -37,7 +37,7 @@ Now ````itc```` command is available to run
 Usage
 =======
 
-```` itc --username apple_id --password my_password````
+```` itc update --username apple_id --password my_password````
 
 ````--password```` parameter is not mandatory, so you can input password manually and securely after script startup
 
@@ -57,7 +57,7 @@ Configuration file
 
 Party begins with ````--config_file```` parameter:
 
-````itc --username apple_id --config-file actions.json````
+````itc update --username apple_id --config-file actions.json````
 
 Config file is a simple JSON file (please note, that it's a _strict_ JSON. You must avoid constructions like **,]** or **,}** (i.e. ````[1,2,]```` or ````{"a":"avalue", "b": "bvalue",}````). If your config file contains errors, you'll get an exception with the exact position of a wrong character).
 
@@ -319,7 +319,13 @@ This part of configuration is self-explanatory
 Automagically generate config file
 =======
 
-With ````--generate-config```` parameter script creates json file ({application_id}.json), which contains metadata for each language of the application. In case if no ````--application-id```` parameter passed to script, it iterates through all the applications for current account. If you want to include inapps into a generated configuration file, add ````--generate-config-inapp```` parameter.
+With ````generate```` command script creates json file ({application_id}.json), which contains metadata for each language of the application. In case if no ````--application-id```` parameter passed to script, it iterates through all the applications for current account. If you want to include inapps into a generated configuration file, add ````--generate-config-inapp```` parameter.
+
+Promo codes
+=======
+
+With ````promo```` command, script generates a certain amount of promocodes for a specified version and either prints them to console or writes to a file:  
+````./itc/bin/itc promo 3 -a APP_ID -o promocodes.txt````
 
 Logging
 =======  
@@ -338,6 +344,6 @@ Roadmap
 
 There are several features planned to be implemented:  
 * ~~inapp purchases management~~  
-* promo codes  
+* ~~promo codes~~  
 * sales reports  
 * user reviews  

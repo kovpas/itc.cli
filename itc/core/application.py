@@ -601,3 +601,48 @@ class ITCApplication(object):
 
         iap.create(inappDict['languages'], screenshot=inappDict.get('review screenshot'))
 
+################## Promo codes management ##################
+
+    def getPromocodes(self, amount):
+        if len(self.versions) == 0:
+            self.getAppInfo()
+        if len(self.versions) == 0:
+            raise 'Can\'t get application versions'
+
+        # Ve need non-editable version to get promocodes from
+        versionString = next((versionString for versionString, version in self.versions.items() if version['statusString'] == "Ready for Sale"), None)
+        if versionString == None:
+            raise 'No "Ready for Sale" versions found'
+            
+        version = self.versions[versionString]
+        if version['editable']:
+            raise 'Version ' + versionString + ' is editable.'
+
+        #get promocodes link
+        logging.info('Getting promocodes link')
+        tree = self._parser.parseTreeForURL(version['detailsLink'])
+        promocodesLink = self._parser.getPromocodesLink(tree)
+        logging.debug('Promocodes link: ' + promocodesLink)
+
+        #enter number of promocodes
+        logging.info('Requesting promocodes: ' + amount)
+        tree = self._parser.parseTreeForURL(promocodesLink)
+        metadata = self._parser.parsePromocodesPageMetadata(tree)
+        formData = {metadata.continueButton + '.x': 46, metadata.continueButton + '.y': 10}
+        formData[metadata.amountName] = amount
+        postFormResponse = requests.post(ITUNESCONNECT_URL + metadata.submitAction, data = formData, cookies=cookie_jar)
+
+        #accept license agreement
+        logging.info('Accepting license agreement')
+        metadata = self._parser.parsePromocodesLicenseAgreementPage(postFormResponse.text)
+        formData = {metadata.continueButton + '.x': 46, metadata.continueButton + '.y': 10}
+        formData[metadata.agreeTickName] = metadata.agreeTickName
+        postFormResponse = requests.post(ITUNESCONNECT_URL + metadata.submitAction, data = formData, cookies=cookie_jar)
+
+        #download promocodes
+        logging.info('Downloading promocodes')
+        downloadCodesLink = self._parser.getDownloadCodesLink(postFormResponse.text)
+        codes = requests.get(ITUNESCONNECT_URL + downloadCodesLink
+                                      , cookies=cookie_jar)
+
+        return codes.text

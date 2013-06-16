@@ -12,9 +12,9 @@ Script allows to add/edit metadata, uploads and in-app purchases of the applicat
 Have you ever had to create 1000 inapp purchases by template? Or may be to upload 15 localized screenshots for each of 25 languages you app supports? This script does that for you :)  
 <sub>This is my first ever application written in python, so, please don't judge me too harshly ;)</sub>
 
-License
-=======
-itc.cli is available under the MIT license.
+[ [Installation](#installation) &bull; [Usage](#usage) &bull; [Configuration file](#configuration-file)
+&bull; [Configuration file autogeneration](#automagically-generate-config-file)
+&bull; [Promo codes](#promo-codes) &bull; [Logging](#logging) &bull; [Roadmap](#roadmap) &bull; [License](#license) ]
 
 Installation
 =======
@@ -347,3 +347,8 @@ There are several features planned to be implemented:
 * ~~promo codes~~  
 * sales reports  
 * user reviews  
+
+License
+=======
+itc.cli is available under the MIT license.
+

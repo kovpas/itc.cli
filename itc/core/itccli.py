@@ -1,23 +1,32 @@
 """Command line interface for iTunesConnect (https://github.com/kovpas/itc.cli)
 
-Usage: itc [-h] [-v | -vv [-f] | -s] [-n] [-z] [-g [-e APP_VER] [-i] | -c FILE] [-a APP_ID] [-u USERNAME] [-p PASSWORD] 
+Usage: 
+    itc update [-c FILE] [-a APP_ID] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc generate [-a APP_ID] [-e APP_VER] [-i] [-c FILE] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc (-h | --help)
+
+Commands:
+  update                      Update specified app with information provided in a config file.
+  generate                    Generate configuration file for a specified application id and version.
+                                If no --application-id provided, configuration files for all 
+                                applications will be created.
+  promo                       Download specified <amount> of promocodes.
 
 Options:
-  -h --help                   Print help (this message) and exit
+  -h --help                   Print help (this message) and exit.
   -v --verbose                Verbose mode. Enables debug print to console.
   -vv                         Enables HTTP response print to a console.
   -f                          Nicely format printed html response.
   -s --silent                 Silent mode. Only error messages are printed.
   -u --username USERNAME      iTunesConnect username.
   -p --password PASSWORD      iTunesConnect password.
-  -g --generate-config        Generate initial configuration file based on current applications' state.
-                                If no --application-id provided, configuration files for all applications will be created.
   -e --application-version APP_VER  
                               Application version to generate config.
                                 If not provided, config will be generated for latest version.
   -i --generate-config-inapp  Generate config for inapps as well.
   -c --config-file FILE       Configuration file. For more details on format see https://github.com/kovpas/itc.cli.
-  -a --application-id APP_ID  Application id to process. This property has more priority than 'application id' in configuration file.
+  -a --application-id APP_ID  Application id to process. This property has more priority than 'application id'
+                                in configuration file.
   -n --no-cookies             Remove saved authentication cookies and authenticate again.
   -z                          Automatically click 'Continue' button if appears after login.
 
@@ -30,7 +39,6 @@ import sys
 import json
 import getpass
 from copy import deepcopy 
-from argparse import ArgumentParser
 
 from itc.core.server import ITCServer
 from itc.util import *
@@ -133,7 +141,7 @@ def main():
         options['--application-id'] = int(options['--application-id'])
 
 
-    if options['--generate-config']:
+    if options['generate']:
         if options['--application-id']:
             if options['--application-id'] in server.applications: 
                 applications = {}

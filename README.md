@@ -12,7 +12,8 @@ Script allows to add/edit metadata, uploads and in-app purchases of the applicat
 Have you ever had to create 1000 inapp purchases by template? Or may be to upload 15 localized screenshots for each of 25 languages you app supports? This script does that for you :)  
 <sub>This is my first ever application written in python, so, please don't judge me too harshly ;)</sub>
 
-[ [Installation](#installation) &bull; [Update metadata](#update-application-metadata) &bull; [Configuration file](#configuration-file)
+[ [Installation](#installation) &bull; [iTC login](#itc-login) 
+&bull; [Update application metadata](#update-application-metadata)
 &bull; [Configuration file autogeneration](#automagically-generate-config-file)
 &bull; [Promo codes](#promo-codes) &bull; [Reviews](#reviews) &bull; [Logging](#logging) &bull; [Roadmap](#roadmap) &bull; [License](#license) ]
 
@@ -34,7 +35,7 @@ Installation
 
 Now ````itc```` command is available to run
 
-Update application metadata
+iTC login
 =======
 
 ```` itc login --username apple_id --password my_password````
@@ -52,7 +53,7 @@ INFO:root:Nothing to do.
 
 Every time you run the script, it uses cookies which are stored in the file ````.itc-cli-cookies.txt```` and checks if cookies are still valid or script needs to log in again. That means that once you've entered your password, you don't need to enter it anymore as long as session is alive on iTunesConnect's servers. In case if you want to ignore cookie file and re-enter credentials, add ````--no-cookies```` parameter.
 
-Configuration file
+Update application metadata
 =======
 
 Party starts with ````--config_file```` parameter:

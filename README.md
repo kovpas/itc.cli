@@ -343,6 +343,11 @@ You may also specify a date range to get reviews. In order to do that, use ````-
 ````./itc/bin/itc reviews ... -d -13/06/2013```` - this will fetch all reviews up to 13th of June  
 ````./itc/bin/itc reviews ... -d 13/06/2013```` - this will fetch all reviews matching exact date - 13th of June  
 
+Date should be in ````dd/mm/yyyy```` format or ````today````, ````yesterday```` or number of days from today:
+````./itc/bin/itc reviews ... -d yesterday```` - reviews for yesterday (not including today! to include today, use ````yesterday-````)  
+````./itc/bin/itc reviews ... -d 6-```` - reviews for last 6 days  
+
+
 Logging
 =======  
 

@@ -4,7 +4,8 @@ import os
 import re
 import json
 import logging
-from datetime import datetime
+import sys
+from datetime import datetime, timedelta
 
 import requests
 
@@ -632,6 +633,15 @@ class ITCApplication(object):
         return codes.text
 
 ################## Reviews management ##################
+    def _parseDate(self, date):
+        if date == 'today':
+            return datetime.today()
+        elif date == 'yesterday':
+            return datetime.today() - timedelta(1)
+        elif not '/' in date:
+            return datetime.today() - timedelta(int(date))
+
+        return datetime.strptime(date, '%d/%m/%Y')
 
     def generateReviews(self, latestVersion=False, date=None, outputFileName=None):
         if self._customerReviewsLink == None:
@@ -643,18 +653,19 @@ class ITCApplication(object):
         maxDate = None
         if date:
             if not '-' in date:
-                minDate = datetime.strptime(date, '%d/%m/%Y')
+                minDate = self._parseDate(date)
                 maxDate = minDate
             else:
                 dateArray = date.split('-')
                 if len(dateArray[0]) > 0:
-                    minDate = datetime.strptime(dateArray[0], '%d/%m/%Y')
+                    minDate = self._parseDate(dateArray[0])
                 if len(dateArray[1]) > 0:
-                    maxDate = datetime.strptime(dateArray[1], '%d/%m/%Y')
+                    maxDate = self._parseDate(dateArray[1])
                 if maxDate != None and minDate != None and maxDate < minDate:
                     tmpDate = maxDate
                     maxDate = minDate
                     minDate = tmpDate
+
         tree = self._parser.parseTreeForURL(self._customerReviewsLink)
         metadata = self._parser.getReviewsPageMetadata(tree)
         if (latestVersion):
@@ -665,6 +676,8 @@ class ITCApplication(object):
 
         reviews = {}
         logging.info('Fetching reviews for %d countries. Please wait...' % len(metadata.countries))
+        percentDone = 0
+        percentStep = 100 / len(metadata.countries)
         for countryName, countryId in metadata.countries.items():
             logging.debug('Fetching reviews for ' + countryName)
             formData = {metadata.countriesSelectName: countryId}
@@ -672,6 +685,14 @@ class ITCApplication(object):
             reviewsForCountry = self._parser.parseReviews(postFormResponse.content, minDate=minDate, maxDate=maxDate)
             if reviewsForCountry != None and len(reviewsForCountry) != 0:
                 reviews[countryName] = reviewsForCountry
+            if not config.options['--silent'] and not config.options['--verbose']:
+                percentDone = percentDone + percentStep
+                print >> sys.stdout, "\r%d%%" %percentDone,
+                sys.stdout.flush()
+
+        if not config.options['--silent'] and not config.options['--verbose']:
+            print >> sys.stdout, "\rDone\n",
+            sys.stdout.flush()
 
         if outputFileName:
             with open(outputFileName, 'wb') as fp:

@@ -35,10 +35,8 @@ Options:
   -n --no-cookies             Remove saved authentication cookies and authenticate again.
   -z                          Automatically click 'Continue' button if appears after login.
   -o --output-file FILE       Name of file to save promocodes or reviews to.
-  -d --date-range DATERANGE   Get reviews specified with this date range. Format [dd/mm/yyyy][-][dd/mm/yyyy].
-                                I.e. you may use it as --date-range=13/06/2013- to get all reviews starting from 13th of June
-                                or --date-range=-13/06/2013 to get all reviews up to 12th of June.
-                                If one date (--date-range=13/06/2013) is provided, it us used as an exact date to get reviews for.
+  -d --date-range DATERANGE   Get reviews specified with this date range. Format [date][-][date].
+                                For more information, please, refer to https://github.com/kovpas/itc.cli
   -l --latest-version         Get reviews for current version only.
 
 """

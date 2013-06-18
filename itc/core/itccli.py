@@ -1,12 +1,14 @@
 """Command line interface for iTunesConnect (https://github.com/kovpas/itc.cli)
 
 Usage: 
+    itc login [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc update [-c FILE] [-a APP_ID] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc generate [-a APP_ID] [-e APP_VER] [-i] [-c FILE] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc promo -a APP_ID [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE] <amount>
     itc (-h | --help)
 
 Commands:
+  login                       Logs in with specified credentials.
   update                      Update specified app with information provided in a config file.
   generate                    Generate configuration file for a specified application id and version.
                                 If no --application-id provided, configuration files for all 

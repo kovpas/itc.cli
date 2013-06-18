@@ -33,9 +33,13 @@ class ITCApplicationParser(BaseParser):
         versions = {}
 
         for versionDiv in versionDivs:
-            version = {}
-            versionString = versionDiv.xpath(".//p/label[.='Version']/../span")[0].text.strip()
+            version = {}            
+            versionString = versionDiv.xpath(".//p/label[.='Version']/../span")
+
+            if len(versionString) == 0: # Add version
+                continue
             
+            versionString = versionString[0].text.strip()
             version['detailsLink'] = versionDiv.xpath(".//a[.='View Details']/@href")[0]
             version['statusString'] = ("".join([str(x) for x in versionDiv.xpath(".//span/img[starts-with(@src, '/itc/images/status-')]/../text()")])).strip()
             version['editable'] = (version['statusString'] != 'Ready for Sale')
@@ -181,4 +185,41 @@ class ITCApplicationParser(BaseParser):
                                , submitAction=submitAction)
         return metadata
 
-        
+    def getPromocodesLink(self, htmlTree):
+        link = htmlTree.xpath("//a[.='Promo Codes']")
+        if len(link) == 0:
+            raise('Cannot find "Promo Codes" button.')
+
+        return link[0].attrib['href'].strip()
+
+    def parsePromocodesPageMetadata(self, tree):
+        PromoPageInfo = namedtuple('PromoPageInfo', ['amountName', 'continueButton', 'submitAction'])
+        amountName = getElement(tree.xpath("//td[@class='metadata-field-code']/input/@name"), 0).strip()
+        continueButton = tree.xpath("//input[@class='continueActionButton']/@name")[0].strip()
+        submitAction = tree.xpath('//form[@name="mainForm"]/@action')[0]
+        metadata = PromoPageInfo(amountName=amountName
+                               , continueButton=continueButton
+                               , submitAction=submitAction)
+
+        return metadata
+
+    def parsePromocodesLicenseAgreementPage(self, pageText):
+        tree = self.parser.parse(pageText)
+        PromoPageInfo = namedtuple('PromoPageInfo', ['agreeTickName', 'continueButton', 'submitAction'])
+        agreeTickName = getElement(tree.xpath("//input[@type='checkbox']/@name"), 0).strip()
+        continueButton = tree.xpath("//input[@class='continueActionButton']/@name")[0].strip()
+        submitAction = tree.xpath('//form[@name="mainForm"]/@action')[0]
+        metadata = PromoPageInfo(agreeTickName=agreeTickName
+                               , continueButton=continueButton
+                               , submitAction=submitAction)
+
+        return metadata
+
+    def getDownloadCodesLink(self, pageText):
+        tree = self.parser.parse(pageText)
+        link = tree.xpath("//img[@alt='Download Codes']/../@href")
+        if len(link) == 0:
+            raise('Cannot find "Download Codes" button.')
+
+        return link[0].strip()
+

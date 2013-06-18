@@ -25,7 +25,7 @@ class ITCServer(object):
         if mainPageTree == None:
             mainPageTree = self._parser.parseTreeForURL(self._loginPageURL)
 
-        if (mainPageTree == None) or (not self._parser.isLoggedIn(mainPageTree)):
+        if (mainPageTree == None) or (not self._parser.isLoggedIn(self.checkContinueButton(mainPageTree))):
             logging.debug('Check login: not logged in!')
             self.__cleanup()
             return False
@@ -41,6 +41,15 @@ class ITCServer(object):
         requests.get(ITUNESCONNECT_URL + self._logoutURL, cookies=cookie_jar)
         self.__cleanup()
 
+    def checkContinueButton(self, mainPageTree):
+        continueHref = self._parser.loginContinueButton(mainPageTree)
+        if continueHref != None and config.options['-z']:
+            mainPageTree = self._parser.parseTreeForURL(continueHref)
+            self.isLoggedIn = self.__checkLogin(mainPageTree=mainPageTree);
+        elif continueHref != None:
+            raise Exception('Cannot continue: There\'s a form after login, which needs your attention.\n\t\tPlease, use -z command line option in order to suppress this check and automatically continue.')
+
+        return mainPageTree
 
     def login(self, login=None, password=None):
         if self.isLoggedIn:
@@ -61,13 +70,7 @@ class ITCServer(object):
 
         self.isLoggedIn = self.__checkLogin(mainPageTree=mainPageTree);
         if not self.isLoggedIn:
-            continueHref = self._parser.loginContinueButton(mainPageTree)
-            if continueHref != None and config.options['-z']:
-                mainPageTree = self._parser.parseTreeForURL(continueHref)
-                self.isLoggedIn = self.__checkLogin(mainPageTree=mainPageTree);
-            elif continueHref != None:
-                raise Exception('Cannot continue: There\'s a form after login, which needs your attention.\n\t\tPlease, use -z command line option in order to suppress this check and automatically continue.')
-
+            mainPageTree = self.checkContinueButton(mainPageTree)
 
         if self.isLoggedIn:
             logging.info("Login: logged in. Session cookies are saved to " + cookie_file)

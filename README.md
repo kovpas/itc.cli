@@ -14,7 +14,7 @@ Have you ever had to create 1000 inapp purchases by template? Or may be to uploa
 
 [ [Installation](#installation) &bull; [Usage](#usage) &bull; [Configuration file](#configuration-file)
 &bull; [Configuration file autogeneration](#automagically-generate-config-file)
-&bull; [Promo codes](#promo-codes) &bull; [Logging](#logging) &bull; [Roadmap](#roadmap) &bull; [License](#license) ]
+&bull; [Promo codes](#promo-codes) &bull; [Reviews](#reviews) &bull; [Logging](#logging) &bull; [Roadmap](#roadmap) &bull; [License](#license) ]
 
 Installation
 =======
@@ -328,6 +328,20 @@ With ````promo```` command, script generates a certain amount of promocodes for 
 ````./itc/bin/itc promo 3 -a APP_ID -o promocodes.txt````
 
 Please note, that 'Ready for Sale' version must exist for application.
+
+Reviews
+=======
+
+Use ````reviews```` command, to download reviews in JSON format:  
+````./itc/bin/itc reviews -a APP_ID -o reviews.txt````
+
+By default, itc will fetch all available reviews, but you can use ````-l```` option to limit scope to latest version only.  
+You may also specify a date range to get reviews. In order to do that, use ````-d```` property:
+
+````./itc/bin/itc reviews ... -d 13/06/2013-18/06/2013```` - this will fetch all reviews within specified period  
+````./itc/bin/itc reviews ... -d 13/06/2013-```` - this will fetch all reviews starting from 13th of June  
+````./itc/bin/itc reviews ... -d -13/06/2013```` - this will fetch all reviews up to 13th of June  
+````./itc/bin/itc reviews ... -d 13/06/2013```` - this will fetch all reviews matching exact date - 13th of June  
 
 Logging
 =======  

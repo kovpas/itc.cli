@@ -4,6 +4,7 @@ import os
 import re
 import json
 import logging
+from datetime import datetime
 
 import requests
 
@@ -220,23 +221,6 @@ class ITCApplication(object):
         with open(filename, 'wb') as fp:
             json.dump(resultDict, fp, sort_keys=False, indent=4, separators=(',', ': '))
 
-
-    def __generateReviewsForVersion(self, version):
-        pass
-
-
-    def generateReviews(self, versionString=None):
-        if self._customerReviewsLink == None:
-            self.getAppInfo()
-        if self._customerReviewsLink == None:
-            raise 'Can\'t get "Customer Reviews link"'
-
-        # TODO: parse multiple pages of inapps.
-        tree = self._parser.parseTreeForURL(self._manageInappsLink)
-        resultDict = self.__generateReviewsForVersion(versionString)
-        filename = str(self.applicationId) + '.reviews.json'
-        with open(filename, 'wb') as fp:
-            json.dump(resultDict, fp, sort_keys=False, indent=4, separators=(',', ': '))
 
     def __dataFromStringOrFile(self, value, languageCode=None):
         if (isinstance(value, basestring)):
@@ -609,7 +593,7 @@ class ITCApplication(object):
         if len(self.versions) == 0:
             raise 'Can\'t get application versions'
 
-        # Ve need non-editable version to get promocodes from
+        # We need non-editable version to get promocodes from
         versionString = next((versionString for versionString, version in self.versions.items() if version['statusString'] == "Ready for Sale"), None)
         if versionString == None:
             raise 'No "Ready for Sale" versions found'
@@ -646,3 +630,51 @@ class ITCApplication(object):
                                       , cookies=cookie_jar)
 
         return codes.text
+
+################## Reviews management ##################
+
+    def generateReviews(self, latestVersion=False, date=None, outputFileName=None):
+        if self._customerReviewsLink == None:
+            self.getAppInfo()
+        if self._customerReviewsLink == None:
+            raise 'Can\'t get "Customer Reviews link"'
+
+        minDate = None
+        maxDate = None
+        if date:
+            if not '-' in date:
+                minDate = datetime.strptime(date, '%d/%m/%Y')
+                maxDate = minDate
+            else:
+                dateArray = date.split('-')
+                if len(dateArray[0]) > 0:
+                    minDate = datetime.strptime(dateArray[0], '%d/%m/%Y')
+                if len(dateArray[1]) > 0:
+                    maxDate = datetime.strptime(dateArray[1], '%d/%m/%Y')
+                if maxDate != None and minDate != None and maxDate < minDate:
+                    tmpDate = maxDate
+                    maxDate = minDate
+                    minDate = tmpDate
+        tree = self._parser.parseTreeForURL(self._customerReviewsLink)
+        metadata = self._parser.getReviewsPageMetadata(tree)
+        if (latestVersion):
+            tree = self._parser.parseTreeForURL(metadata.currentVersion)
+        else:
+            tree = self._parser.parseTreeForURL(metadata.allVersions)
+        tree = self._parser.parseTreeForURL(metadata.allReviews)
+
+        reviews = {}
+        logging.info('Fetching reviews for %d countries. Please wait...' % len(metadata.countries))
+        for countryName, countryId in metadata.countries.items():
+            logging.debug('Fetching reviews for ' + countryName)
+            formData = {metadata.countriesSelectName: countryId}
+            postFormResponse = requests.post(ITUNESCONNECT_URL + metadata.countryFormSubmitAction, data = formData, cookies=cookie_jar)
+            reviewsForCountry = self._parser.parseReviews(postFormResponse.content, minDate=minDate, maxDate=maxDate)
+            if reviewsForCountry != None and len(reviewsForCountry) != 0:
+                reviews[countryName] = reviewsForCountry
+
+        if outputFileName:
+            with open(outputFileName, 'wb') as fp:
+                json.dump(reviews, fp, sort_keys=False, indent=4, separators=(',', ': '))
+        else:
+            print reviews

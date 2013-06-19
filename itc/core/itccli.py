@@ -2,8 +2,8 @@
 
 Usage: 
     itc login [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
-    itc update [-c FILE] [-a APP_ID] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
-    itc create [-c FILE] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc update -c FILE [-a APP_ID] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc create -c FILE [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc generate [-a APP_ID] [-e APP_VER] [-i] [-c FILE] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc promo -a APP_ID [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE] <amount>
     itc reviews -a APP_ID [-d DATE] [-l] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE]

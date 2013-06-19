@@ -22,6 +22,10 @@ class ITCImageUploader(object):
                 , 'deleteURL': matches.group(2)
                 , 'sortURL': matches.group(3)}
 
+    def parseStatusURLSFromScript(self, script):
+        matches = re.search('{.*statusURL:\s\'([^\']+)\'', script) 
+        return {'statusURL': matches.group(1)}
+
     def imagesForDevice(self, device_type):
         if len(self._uploadSessionData) == 0:
             raise 'No session keys found'

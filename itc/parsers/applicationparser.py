@@ -1,5 +1,9 @@
+# coding=utf-8
+
 import logging
+import re
 from collections import namedtuple
+from datetime import datetime
 
 from itc.parsers.baseparser import BaseParser
 from itc.util import getElement
@@ -33,9 +37,13 @@ class ITCApplicationParser(BaseParser):
         versions = {}
 
         for versionDiv in versionDivs:
-            version = {}
-            versionString = versionDiv.xpath(".//p/label[.='Version']/../span")[0].text.strip()
+            version = {}            
+            versionString = versionDiv.xpath(".//p/label[.='Version']/../span")
+
+            if len(versionString) == 0: # Add version
+                continue
             
+            versionString = versionString[0].text.strip()
             version['detailsLink'] = versionDiv.xpath(".//a[.='View Details']/@href")[0]
             version['statusString'] = ("".join([str(x) for x in versionDiv.xpath(".//span/img[starts-with(@src, '/itc/images/status-')]/../text()")])).strip()
             version['editable'] = (version['statusString'] != 'Ready for Sale')
@@ -181,4 +189,100 @@ class ITCApplicationParser(BaseParser):
                                , submitAction=submitAction)
         return metadata
 
+    def getPromocodesLink(self, htmlTree):
+        link = htmlTree.xpath("//a[.='Promo Codes']")
+        if len(link) == 0:
+            raise('Cannot find "Promo Codes" button.')
+
+        return link[0].attrib['href'].strip()
+
+    def parsePromocodesPageMetadata(self, tree):
+        PromoPageInfo = namedtuple('PromoPageInfo', ['amountName', 'continueButton', 'submitAction'])
+        amountName = getElement(tree.xpath("//td[@class='metadata-field-code']/input/@name"), 0).strip()
+        continueButton = tree.xpath("//input[@class='continueActionButton']/@name")[0].strip()
+        submitAction = tree.xpath('//form[@name="mainForm"]/@action')[0]
+        metadata = PromoPageInfo(amountName=amountName
+                               , continueButton=continueButton
+                               , submitAction=submitAction)
+
+        return metadata
+
+    def parsePromocodesLicenseAgreementPage(self, pageText):
+        tree = self.parser.parse(pageText)
+        PromoPageInfo = namedtuple('PromoPageInfo', ['agreeTickName', 'continueButton', 'submitAction'])
+        agreeTickName = getElement(tree.xpath("//input[@type='checkbox']/@name"), 0).strip()
+        continueButton = tree.xpath("//input[@class='continueActionButton']/@name")[0].strip()
+        submitAction = tree.xpath('//form[@name="mainForm"]/@action')[0]
+        metadata = PromoPageInfo(agreeTickName=agreeTickName
+                               , continueButton=continueButton
+                               , submitAction=submitAction)
+
+        return metadata
+
+    def getDownloadCodesLink(self, pageText):
+        tree = self.parser.parse(pageText)
+        link = tree.xpath("//img[@alt='Download Codes']/../@href")
+        if len(link) == 0:
+            raise('Cannot find "Download Codes" button.')
+
+        return link[0].strip()
+
+    def getReviewsPageMetadata(self, tree):
+        ReviewsPageInfo = namedtuple('ReviewsPageInfo', ['countries', 'countriesSelectName', 'countryFormSubmitAction', 'allVersions', 'currentVersion', 'allReviews'])
+        countriesSelectName = tree.xpath('//select/@name')[0].strip()
+        countriesSelect = tree.xpath('//select/option')
+        countries = {}
+        for countryOption in countriesSelect:
+            countries[countryOption.text.strip()] = countryOption.attrib['value']
+
+        countryFormSubmitAction = tree.xpath('//form/@action')[0]
+        allVersionsLink = tree.xpath('//div[@class="button-container"]//a')[0].attrib['href'].strip()
+        currentVersionLink = tree.xpath('//div[@class="button-container"]//a')[1].attrib['href'].strip()
+        allReviewsLink = tree.xpath('//span[@class="paginatorBatchSizeList"]//a[.="All"]')[0].attrib['href'].strip()
+
+        metadata = ReviewsPageInfo(countries=countries
+                                 , countriesSelectName=countriesSelectName
+                                 , allVersions=allVersionsLink
+                                 , currentVersion=currentVersionLink
+                                 , allReviews=allReviewsLink
+                                 , countryFormSubmitAction=countryFormSubmitAction)
+
+        return metadata
+
+    def parseReviews(self, pageText, minDate=None, maxDate=None):
+        Reviews = namedtuple('Reviews', ['reviews', 'nextPageLink', 'totalPages'])
+        tree = self.parser.parse(pageText)
+        reviewDivs = tree.xpath('//div[@class="reviews-container"]')
         
+        if len(reviewDivs) == 0:
+            return None
+
+        reviews = []
+        for reviewDiv in reviewDivs:
+            review = {} 
+            reviewerString = getElement(reviewDiv.xpath('./p[@class="reviewer"]'), 0).text.strip()
+            regexp = re.compile('by\s+(.*)-\sVersion(.*)-\s*(.*)', re.DOTALL)
+            m = regexp.search(reviewerString)
+            review['reviewer'] = m.group(1).strip()
+            review['version'] = m.group(2).strip()
+            review['date'] = m.group(3).strip()
+            reviewDate = datetime.strptime(review['date'], '%b %d, %Y')
+            if minDate != None and reviewDate < minDate:
+                break
+            if maxDate != None and reviewDate > maxDate:
+                continue
+
+            title = getElement(reviewDiv.xpath('./p[@class="reviewer-title"]'), 0).text.strip()
+            review['title'] = title.replace(u'★', '').strip()
+            review['mark'] = len(title.replace(review['title'], '').strip())
+
+            review['text'] = getElement(reviewDiv.xpath('./p[@class="review-text"]'), 0).text.strip()
+            reviews.append(review)
+
+        # nextPageLink = 
+
+        # metadata = Reviews(reviews=reviews
+        #                  , nextPageLink=nextPageLink
+        #                  , totalPages=totalPages)
+
+        return reviews

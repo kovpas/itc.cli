@@ -6,8 +6,9 @@ import requests
 
 from itc.core.application import ITCApplication
 from itc.parsers.serverparser import ITCServerParser
-from itc.core.baseobject import ITCImageUploader
+from itc.core.imageuploader import ITCImageUploader
 from itc.util import languages
+from itc.util import dataFromStringOrFile
 from itc.conf import *
 
 class ITCServer(ITCImageUploader):
@@ -30,7 +31,7 @@ class ITCServer(ITCImageUploader):
         if mainPageTree == None:
             mainPageTree = self._parser.parseTreeForURL(self._loginPageURL)
 
-        if (mainPageTree == None) or (not self._parser.isLoggedIn(mainPageTree)):
+        if (mainPageTree == None) or (not self._parser.isLoggedIn(self.checkContinueButton(mainPageTree))):
             logging.debug('Check login: not logged in!')
             self.__cleanup()
             return False
@@ -46,6 +47,15 @@ class ITCServer(ITCImageUploader):
         requests.get(ITUNESCONNECT_URL + self._logoutURL, cookies=cookie_jar)
         self.__cleanup()
 
+    def checkContinueButton(self, mainPageTree):
+        continueHref = self._parser.loginContinueButton(mainPageTree)
+        if continueHref != None and config.options['-z']:
+            mainPageTree = self._parser.parseTreeForURL(continueHref)
+            self.isLoggedIn = self.__checkLogin(mainPageTree=mainPageTree);
+        elif continueHref != None:
+            raise Exception('Cannot continue: There\'s a form after login, which needs your attention.\n\t\tPlease, use -z command line option in order to suppress this check and automatically continue.')
+
+        return mainPageTree
 
     def login(self, login=None, password=None):
         if self.isLoggedIn:
@@ -65,6 +75,9 @@ class ITCServer(ITCImageUploader):
         mainPageTree = self._parser.parseTreeForURL(actionURL, method="POST", payload=payload)
 
         self.isLoggedIn = self.__checkLogin(mainPageTree=mainPageTree);
+        if not self.isLoggedIn:
+            mainPageTree = self.checkContinueButton(mainPageTree)
+
         if self.isLoggedIn:
             logging.info("Login: logged in. Session cookies are saved to " + cookie_file)
             logging.debug(cookie_jar)
@@ -86,7 +99,29 @@ class ITCServer(ITCImageUploader):
             application = ITCApplication(name=name, applicationId=applicationId, link=link)
             self.applications[applicationId] = application
 
-    def createNewApp(self, appDictionary=None):
+    def __manageCountries(self, serverCountries, countries, formData):
+        include = countries \
+            and isinstance(countries, dict) \
+            and 'type' in countries and countries['type'] == 'include' \
+            and 'list' in countries
+        exclude = countries \
+            and isinstance(countries, dict) \
+            and 'type' in countries and countries['type'] == 'exclude' \
+            and 'list' in countries
+
+        if include:
+            for country in countries['list']:
+                logging.debug("Including " + country)
+                formData[serverCountries[country]] = serverCountries[country]
+        else:
+            for country, val in serverCountries.items():
+                if not exclude or country not in countries['list']:
+                    formData[val] = val
+                else:
+                    logging.debug("Excluding " + country)
+
+
+    def createNewApp(self, appDictionary=None, filename_format=None):
         if appDictionary == None or len(appDictionary) == 0 or 'new app' not in appDictionary: # no data to create app from
             return
 
@@ -106,12 +141,16 @@ class ITCServer(ITCImageUploader):
         formData[formNames['continue action'] + '.y'] = "0"
 
         logging.debug(formData)
-        postFormResponse = requests.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies=cookie_jar)
+        secondPageTree = self._parser.parseTreeForURL(submitAction, method="POST", payload=formData)
+        errors = self._parser.checkPageForErrors(secondPageTree)
 
-        if postFormResponse.status_code != 200:
-            raise 'Wrong response from iTunesConnect. Status code: ' + str(postFormResponse.status_code)
+        if errors != None and len(errors) != 0:
+            for error in errors:
+                logging.error(error)
 
-        metadata = self._parser.parseSecondAppCreatePageForm(postFormResponse.text)
+            return
+
+        metadata = self._parser.parseSecondAppCreatePageForm(secondPageTree)
         formData = {}
         formNames = metadata.formNames
         submitAction = metadata.submitAction
@@ -124,33 +163,133 @@ class ITCServer(ITCImageUploader):
         if 'discount' in newAppMetadata and newAppMetadata['discount']:
             formData[formNames['discount']] = formNames['discount']
 
-        include = 'countries' in newAppMetadata \
-            and isinstance(newAppMetadata['countries'], dict) \
-            and 'type' in newAppMetadata['countries'] and newAppMetadata['countries']['type'] == 'include' \
-            and 'list' in newAppMetadata['countries']
-        exclude = 'countries' in newAppMetadata \
-            and isinstance(newAppMetadata['countries'], dict) \
-            and 'type' in newAppMetadata['countries'] and newAppMetadata['countries']['type'] == 'exclude' \
-            and 'list' in newAppMetadata['countries']
-
-        if include:
-            for country in newAppMetadata['countries']['list']:
-                logging.debug("Including " + country)
-                formData[metadata.countries[country]] = metadata.countries[country]
-        else:
-            for country, val in metadata.countries.items():
-                if not exclude or country not in newAppMetadata['countries']['list']:
-                    formData[val] = val
-                else:
-                    logging.debug("Excluding " + country)
-
+        if 'countries' in newAppMetadata:
+            self.__manageCountries(metadata.countries, newAppMetadata['countries'], formData)
 
         formData[formNames['continue action'] + '.x'] = "0"
         formData[formNames['continue action'] + '.y'] = "0"
 
-        postFormResponse = requests.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies=cookie_jar)
+        thirdPageTree = self._parser.parseTreeForURL(submitAction, method="POST", payload=formData)
+        errors = self._parser.checkPageForErrors(thirdPageTree)
 
-        if postFormResponse.status_code != 200:
-            raise 'Wrong response from iTunesConnect. Status code: ' + str(postFormResponse.status_code)
+        if errors != None and len(errors) != 0:
+            for error in errors:
+                logging.error(error)
 
-        logging.debug(postFormResponse.text)
+            return
+
+        metadata = self._parser.parseThirdAppCreatePageForm(thirdPageTree, fetchSubcategories=newAppMetadata['primary category'])
+        
+        formData = {}
+        formNames = metadata.formNames
+
+        iconUploadScreenshotForm    = formNames['iconUploadScreenshotForm'] 
+        iphoneUploadScreenshotForm  = formNames['iphoneUploadScreenshotForm'] 
+        iphone5UploadScreenshotForm = formNames['iphone5UploadScreenshotForm']
+        ipadUploadScreenshotForm    = formNames['ipadUploadScreenshotForm']
+        tfUploadForm                = formNames['tfUploadForm']
+
+        iconUploadScreenshotJS    = iconUploadScreenshotForm.xpath('../following-sibling::script/text()')[0]
+        iphoneUploadScreenshotJS  = iphoneUploadScreenshotForm.xpath('../following-sibling::script/text()')[0]
+        iphone5UploadScreenshotJS = iphone5UploadScreenshotForm.xpath('../following-sibling::script/text()')[0]
+        ipadUploadScreenshotJS    = ipadUploadScreenshotForm.xpath('../following-sibling::script/text()')[0]
+        tfUploadJS                = tfUploadForm.xpath('../following-sibling::script/text()')[0]
+
+        self._uploadSessionData['icon'] = dict({'action': iconUploadScreenshotForm.attrib['action']
+                                                        , 'key': iconUploadScreenshotForm.xpath(".//input[@name='uploadKey']/@value")[0]
+                                                      }, **self.parseStatusURLSFromScript(iconUploadScreenshotJS))
+        self._uploadSessionData[DEVICE_TYPE.iPhone] = dict({'action': iphoneUploadScreenshotForm.attrib['action']
+                                                        , 'key': iphoneUploadScreenshotForm.xpath(".//input[@name='uploadKey']/@value")[0]
+                                                      }, **self.parseURLSFromScript(iphoneUploadScreenshotJS))
+        self._uploadSessionData[DEVICE_TYPE.iPhone5] = dict({'action': iphone5UploadScreenshotForm.attrib['action']
+                                                         , 'key': iphone5UploadScreenshotForm.xpath(".//input[@name='uploadKey']/@value")[0]
+                                                       }, **self.parseURLSFromScript(iphone5UploadScreenshotJS))
+        self._uploadSessionData[DEVICE_TYPE.iPad] = dict({'action': ipadUploadScreenshotForm.attrib['action']
+                                                      , 'key': ipadUploadScreenshotForm.xpath(".//input[@name='uploadKey']/@value")[0]
+                                                    }, **self.parseURLSFromScript(ipadUploadScreenshotJS))
+        self._uploadSessionData['tf'] = dict({'action': tfUploadForm.attrib['action']
+                                                      , 'key': tfUploadForm.xpath(".//input[@name='uploadKey']/@value")[0]
+                                                    }, **self.parseStatusURLSFromScript(tfUploadJS))
+
+        self._uploadSessionId = iphoneUploadScreenshotForm.xpath('.//input[@name="uploadSessionID"]/@value')[0]
+
+        for device_type in ['icon', DEVICE_TYPE.iPhone, DEVICE_TYPE.iPhone5, DEVICE_TYPE.iPad]:
+            self._images[device_type] = self.imagesForDevice(device_type)
+
+        logging.debug(self._images)
+
+        #uploading icon
+        self.uploadScreenshot('icon', newAppMetadata['large app icon']['file name format'])
+        self._images['icon'] = self.imagesForDevice('icon')
+
+        screenshots = newAppMetadata['screenshots']
+        replace_language = ALIASES.language_aliases.get(newAppMetadata['default language'], newAppMetadata['default language'])
+        langImagePath = filename_format.replace('{language}', replace_language)
+
+        for dType, indexes in screenshots.items():
+            device_type = None
+            if dType.lower() == 'iphone':
+                device_type = DEVICE_TYPE.iPhone
+            elif dType.lower() == 'iphone 5':
+                device_type = DEVICE_TYPE.iPhone5
+            elif dType.lower() == 'ipad':
+                device_type = DEVICE_TYPE.iPad
+
+            replace_device = ALIASES.device_type_aliases.get(dType.lower(), DEVICE_TYPE.deviceStrings[device_type])
+
+            imagePath = langImagePath.replace('{device_type}', replace_device)
+            logging.info('Looking for images at ' + imagePath)
+
+            for i in indexes:
+                realImagePath = imagePath.replace("{index}", str(i))
+                self.uploadScreenshot(device_type, realImagePath)
+            self._images[device_type] = self.imagesForDevice(device_type)
+
+        formData[formNames['version number']] = newAppMetadata['version']
+        formData[formNames['copyright']] = newAppMetadata['copyright']
+        formData[formNames['primary category']] = metadata.categories[newAppMetadata['primary category']]
+
+        if metadata.subcategories != None and len(metadata.subcategories) != 0:
+            if 'primary subcategory 1' in newAppMetadata:
+                formData[formNames['primary subcategory 1']] = metadata.subcategories[newAppMetadata['primary subcategory 1']]
+            if 'primary subcategory 2' in newAppMetadata:
+                formData[formNames['primary subcategory 2']] = metadata.subcategories[newAppMetadata['primary subcategory 2']]
+            if 'secondary subcategory 1' in newAppMetadata:
+                formData[formNames['secondary subcategory 1']] = metadata.subcategories[newAppMetadata['secondary subcategory 1']]
+            if 'secondary subcategory 2' in newAppMetadata:
+                formData[formNames['secondary subcategory 2']] = metadata.subcategories[newAppMetadata['secondary subcategory 2']]
+
+        if 'secondary category' in newAppMetadata:
+            formData[formNames['secondary category']] = metadata.categories[newAppMetadata['secondary category']]
+
+        appRatings = metadata.appRatings
+
+        for index, rating in enumerate(newAppMetadata['app rating']):
+            formData[appRatings[index]['name']] = appRatings[index]['ratings'][rating]
+
+        if 'eula text' in newAppMetadata:
+            formData[formNames['eula text']] = dataFromStringOrFile(newAppMetadata['eula text'])
+            if 'eula countries' in newAppMetadata:
+                self.__manageCountries(metadata.eulaCountries, newAppMetadata['eula countries'], formData)
+
+        formData[formNames['description']] = dataFromStringOrFile(newAppMetadata['description'])
+        formData[formNames['keywords']] = dataFromStringOrFile(newAppMetadata['keywords'])
+        formData[formNames['support url']] = newAppMetadata['support url']
+        formData[formNames['marketing url']] = newAppMetadata.get('marketing url')
+        formData[formNames['privacy policy url']] = newAppMetadata.get('privacy policy url')
+
+        appReviewInfo = appDictionary['app review information']
+        formData[formNames['first name']] = appReviewInfo['first name']
+        formData[formNames['last name']] = appReviewInfo['last name']
+        formData[formNames['email address']] = appReviewInfo['email address']
+        formData[formNames['phone number']] = appReviewInfo['phone number']
+        formData[formNames['review notes']] = dataFromStringOrFile(appReviewInfo.get('review notes'))
+        formData[formNames['username']] = appReviewInfo.get('demo username')
+        formData[formNames['password']] = appReviewInfo.get('demo password')
+
+        finalPageTree = self._parser.parseTreeForURL(metadata.submitAction, method="POST", payload=formData)
+        errors = self._parser.checkPageForErrors(finalPageTree)
+
+        if errors != None and len(errors) != 0:
+            for error in errors:
+                logging.error(error)

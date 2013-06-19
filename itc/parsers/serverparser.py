@@ -2,6 +2,7 @@ import logging
 from collections import namedtuple
 
 from itc.parsers.baseparser import BaseParser
+import pprint
 
 ApplicationData = namedtuple('SessionURLs', ['name', 'applicationId', 'link'])
 
@@ -19,7 +20,10 @@ class ITCServerParser(BaseParser):
         passwordInput = htmlTree.xpath("//input[@name='theAccountPW']")
 
         if not ((len(usernameInput) == 1) and (len(passwordInput) == 1)):
-            self.parseSessionURLs(htmlTree)
+            try:
+                self.parseSessionURLs(htmlTree)
+            except:
+                return False
             return True
 
         return False
@@ -130,11 +134,10 @@ class ITCServerParser(BaseParser):
 
         return metadata
 
-    def parseSecondAppCreatePageForm(self, pageText):
+    def parseSecondAppCreatePageForm(self, createAppTree):
         formNames = {}
         AppMetadata = namedtuple('AppMetadata', ['formNames', 'submitAction', 'countries'])
 
-        createAppTree = self.parser.parse(pageText)
         createAppForm = createAppTree.xpath("//form[@id='mainForm']")[0]
         submitAction = createAppForm.attrib['action']
 
@@ -155,3 +158,106 @@ class ITCServerParser(BaseParser):
                              , countries=countries)
 
         return metadata
+
+    def parseThirdAppCreatePageForm(self, htmlTree, fetchSubcategories=False):
+        formNames = {}
+        AppMetadata = namedtuple('AppMetadata', ['formNames', 'submitAction', 'categories', 'subcategories', 'appRatings', 'eulaCountries'])
+        
+        versionForm = htmlTree.xpath("//form[@id='versionInitForm']")[0]
+        submitAction = versionForm.attrib['action']
+        formNames['version number'] = versionForm.xpath("//div[@id='versionNumberTooltipId']/../input/@name")[0]
+        formNames['copyright'] = versionForm.xpath("//div[@id='copyrightTooltipId']/../input/@name")[0]
+        formNames['primary category'] = versionForm.xpath("//select[@id='version-primary-popup']/@name")[0]
+        formNames['primary subcategory 1'] = versionForm.xpath("//select[@id='primary-first-popup']/@name")[0]
+        formNames['primary subcategory 2'] = versionForm.xpath("//select[@id='primary-second-popup']/@name")[0]
+        formNames['secondary category'] = versionForm.xpath("//select[@id='version-secondary-popup']/@name")[0]
+        formNames['secondary subcategory 1'] = versionForm.xpath("//select[@id='secondary-first-popup']/@name")[0]
+        formNames['secondary subcategory 2'] = versionForm.xpath("//select[@id='secondary-second-popup']/@name")[0]
+        categories = {}
+        subcategories = None
+
+        categoryOptions = versionForm.xpath("//select[@id='version-primary-popup']/option")
+        for categoryOption in categoryOptions:
+            if categoryOption.text.strip() != 'Select':
+                categories[categoryOption.text.strip()] = categoryOption.attrib['value']
+
+        if fetchSubcategories:
+            categoryId = categories[fetchSubcategories];
+            subcategoriesURL = htmlTree.xpath('//span[@id="primaryCategoryContainer"]/@action')[0]
+            formData = {'viaLCAjaxContainer':'true'}
+            formData[formNames['primary category']] = categoryId
+            formData[formNames['primary subcategory 1']] = 'WONoSelectionString'
+            formData[formNames['primary subcategory 2']] = 'WONoSelectionString'
+
+            subcategoriesTree = self.parseTreeForURL(subcategoriesURL, method="POST", payload=formData)
+            subcategoryOptions = subcategoriesTree.xpath("//select[@id='primary-first-popup']/option")
+            subcategories = {}
+            for categoryOption in subcategoryOptions:
+                if categoryOption.text.strip() != 'Select':
+                    subcategories[categoryOption.text.strip()] = categoryOption.attrib['value']
+
+        appRatings = []
+        appRatingTable = versionForm.xpath('//tr[@id="game-ratings"]/td/table/tbody/tr')
+
+        for ratingTr in appRatingTable:
+            inputs = ratingTr.xpath('.//input')
+            if len(inputs) != 3:
+                continue
+            appRating = {'name': inputs[0].attrib['name'], 'ratings': []}
+            for inpt in inputs:
+                appRating['ratings'].append(inpt.attrib['value'])
+            appRatings.append(appRating)
+
+        formNames['description'] = versionForm.xpath("//div[@id='descriptionUpdateContainerId']/div/span/textarea/@name")[0]
+        formNames['keywords'] = versionForm.xpath("//div[@id='keywordsTooltipId']/../input/@name")[0]
+        formNames['support url'] = versionForm.xpath("//div[@id='supportURLTooltipId']/../input/@name")[0]
+        formNames['marketing url'] = versionForm.xpath("//div[@id='marketingURLOptionalTooltipId']/../input/@name")[0]
+        formNames['privacy policy url'] = versionForm.xpath("//div[@id='privacyPolicyURLTooltipId']/../input/@name")[0]
+
+        formNames['first name'] = versionForm.xpath("//div/label[.='First Name']/../span/input/@name")[0]
+        formNames['last name'] = versionForm.xpath("//div/label[.='Last Name']/../span/input/@name")[0]
+        formNames['email address'] = versionForm.xpath("//div/label[.='Email Address']/../span/input/@name")[0]
+        formNames['phone number'] = versionForm.xpath("//div/label[.='Phone Number']/../span/input/@name")[0]
+        formNames['review notes'] = versionForm.xpath("//div[@id='reviewnotes']/div/span/textarea/@name")[0]
+        formNames['username'] = versionForm.xpath("//div/label[.='Username']/../span/input/@name")[0]
+        formNames['password'] = versionForm.xpath("//div/label[.='Password']/../span/input/@name")[0]
+
+        formNames['eula text'] = versionForm.xpath("//textarea[@id='eula-text']/@name")[0]
+        eulaCountries = {}
+        countryDivs = versionForm.xpath("//div[@class='country group']")
+        for countryDiv in countryDivs:
+            name = countryDiv.xpath("./div[@class='country-name']")[0].text.strip()
+            eulaCountries[name] = countryDiv.xpath("./div[@class='country-check-box']/input[@class='country-checkbox']")[0].attrib['value']
+
+        iconUploadScreenshotForm = versionForm.xpath("//form[@name='FileUploadForm_largeAppIcon']")[0]
+        iphoneUploadScreenshotForm = versionForm.xpath("//form[@name='FileUploadForm_35InchRetinaDisplayScreenshots']")[0]
+        iphone5UploadScreenshotForm = versionForm.xpath("//form[@name='FileUploadForm_iPhone5']")[0]
+        ipadUploadScreenshotForm = versionForm.xpath("//form[@name='FileUploadForm_iPadScreenshots']")[0]
+        tfUploadForm = versionForm.xpath("//form[@name='FileUploadForm_tfUploader']")[0]
+
+        formNames['iconUploadScreenshotForm'] = iconUploadScreenshotForm
+        formNames['iphoneUploadScreenshotForm'] = iphoneUploadScreenshotForm
+        formNames['iphone5UploadScreenshotForm'] = iphone5UploadScreenshotForm
+        formNames['ipadUploadScreenshotForm'] = ipadUploadScreenshotForm
+        formNames['tfUploadForm'] = tfUploadForm
+
+        metadata = AppMetadata(formNames=formNames
+                             , submitAction=submitAction
+                             , categories=categories
+                             , subcategories=subcategories
+                             , eulaCountries=eulaCountries
+                             , appRatings=appRatings)
+
+        return metadata
+
+    def checkPageForErrors(self, htmlTree):
+        errors = htmlTree.xpath("//div[@id='LCPurpleSoftwarePageWrapperErrorMessage']/div/ul/li/span/text()")
+
+        return errors
+
+    def loginContinueButton(self, htmlTree):
+        continueButtonLink = htmlTree.xpath("//img[@class='customActionButton']/..")
+        if len(continueButtonLink) == 0:
+            return None
+
+        return continueButtonLink[0].attrib['href']

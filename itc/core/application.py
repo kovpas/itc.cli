@@ -4,13 +4,16 @@ import os
 import re
 import json
 import logging
+import sys
+from datetime import datetime, timedelta
 
 import requests
 
 from itc.core.inapp import ITCInappPurchase
-from itc.core.baseobject import ITCImageUploader
+from itc.core.imageuploader import ITCImageUploader
 from itc.parsers.applicationparser import ITCApplicationParser
 from itc.util import languages
+from itc.util import dataFromStringOrFile
 from itc.util import EnhancedFile
 from itc.conf import *
 
@@ -127,36 +130,6 @@ class ITCApplication(ITCImageUploader):
             json.dump(resultDict, fp, sort_keys=False, indent=4, separators=(',', ': '))
 
 
-    def __generateReviewsForVersion(self, version):
-        pass
-
-
-    def generateReviews(self, versionString=None):
-        if self._customerReviewsLink == None:
-            self.getAppInfo()
-        if self._customerReviewsLink == None:
-            raise 'Can\'t get "Customer Reviews link"'
-
-        # TODO: parse multiple pages of inapps.
-        tree = self._parser.parseTreeForURL(self._manageInappsLink)
-        resultDict = self.__generateReviewsForVersion(versionString)
-        filename = str(self.applicationId) + '.reviews.json'
-        with open(filename, 'wb') as fp:
-            json.dump(resultDict, fp, sort_keys=False, indent=4, separators=(',', ': '))
-
-    def __dataFromStringOrFile(self, value, languageCode=None):
-        if (isinstance(value, basestring)):
-            return value
-        elif (isinstance(value, dict)):
-            if ('file name format' in value):
-                descriptionFilePath = value['file name format']
-                if languageCode != None:
-                    replace_language = ALIASES.language_aliases.get(languageCode, languageCode)
-                    descriptionFilePath = descriptionFilePath.replace('{language}', replace_language)
-                return open(descriptionFilePath, 'r').read()
-
-        return None
-
     def editVersion(self, dataDict, lang=None, versionString=None, filename_format=None):
         if dataDict == None or len(dataDict) == 0: # nothing to change
             return
@@ -187,10 +160,10 @@ class ITCApplication(ITCImageUploader):
         formData["save"] = "true"
 
         formData[formNames['appNameName']]      = dataDict.get('name', metadata.formData[languageId]['appNameValue'])
-        formData[formNames['descriptionName']]  = self.__dataFromStringOrFile(dataDict.get('description', metadata.formData[languageId]['descriptionValue']), languageCode)
+        formData[formNames['descriptionName']]  = self.dataFromStringOrFile(dataDict.get('description', metadata.formData[languageId]['descriptionValue']), languageCode)
         if 'whatsNewName' in formNames:
-            formData[formNames['whatsNewName']] = self.__dataFromStringOrFile(dataDict.get('whats new', metadata.formData[languageId]['whatsNewValue']), languageCode)
-        formData[formNames['keywordsName']]     = self.__dataFromStringOrFile(dataDict.get('keywords', metadata.formData[languageId]['keywordsValue']), languageCode)
+            formData[formNames['whatsNewName']] = self.dataFromStringOrFile(dataDict.get('whats new', metadata.formData[languageId]['whatsNewValue']), languageCode)
+        formData[formNames['keywordsName']]     = self.dataFromStringOrFile(dataDict.get('keywords', metadata.formData[languageId]['keywordsValue']), languageCode)
         formData[formNames['supportURLName']]   = dataDict.get('support url', metadata.formData[languageId]['supportURLValue'])
         formData[formNames['marketingURLName']] = dataDict.get('marketing url', metadata.formData[languageId]['marketingURLValue'])
         formData[formNames['pPolicyURLName']]   = dataDict.get('privacy policy url', metadata.formData[languageId]['pPolicyURLValue'])
@@ -507,3 +480,125 @@ class ITCApplication(ITCImageUploader):
 
         iap.create(inappDict['languages'], screenshot=inappDict.get('review screenshot'))
 
+################## Promo codes management ##################
+
+    def getPromocodes(self, amount):
+        if len(self.versions) == 0:
+            self.getAppInfo()
+        if len(self.versions) == 0:
+            raise 'Can\'t get application versions'
+
+        # We need non-editable version to get promocodes from
+        versionString = next((versionString for versionString, version in self.versions.items() if version['statusString'] == "Ready for Sale"), None)
+        if versionString == None:
+            raise 'No "Ready for Sale" versions found'
+            
+        version = self.versions[versionString]
+        if version['editable']:
+            raise 'Version ' + versionString + ' is editable.'
+
+        #get promocodes link
+        logging.info('Getting promocodes link')
+        tree = self._parser.parseTreeForURL(version['detailsLink'])
+        promocodesLink = self._parser.getPromocodesLink(tree)
+        logging.debug('Promocodes link: ' + promocodesLink)
+
+        #enter number of promocodes
+        logging.info('Requesting promocodes: ' + amount)
+        tree = self._parser.parseTreeForURL(promocodesLink)
+        metadata = self._parser.parsePromocodesPageMetadata(tree)
+        formData = {metadata.continueButton + '.x': 46, metadata.continueButton + '.y': 10}
+        formData[metadata.amountName] = amount
+        postFormResponse = requests.post(ITUNESCONNECT_URL + metadata.submitAction, data = formData, cookies=cookie_jar)
+
+        #accept license agreement
+        logging.info('Accepting license agreement')
+        metadata = self._parser.parsePromocodesLicenseAgreementPage(postFormResponse.text)
+        formData = {metadata.continueButton + '.x': 46, metadata.continueButton + '.y': 10}
+        formData[metadata.agreeTickName] = metadata.agreeTickName
+        postFormResponse = requests.post(ITUNESCONNECT_URL + metadata.submitAction, data = formData, cookies=cookie_jar)
+
+        #download promocodes
+        logging.info('Downloading promocodes')
+        downloadCodesLink = self._parser.getDownloadCodesLink(postFormResponse.text)
+        codes = requests.get(ITUNESCONNECT_URL + downloadCodesLink
+                                      , cookies=cookie_jar)
+
+        return codes.text
+
+################## Reviews management ##################
+    def _parseDate(self, date):
+        returnDate = None
+        if date == 'today':
+            returnDate = datetime.today()
+        elif date == 'yesterday':
+            returnDate = datetime.today() - timedelta(1)
+        elif not '/' in date:
+            returnDate = datetime.today() - timedelta(int(date))
+        else:
+            returnDate = datetime.strptime(date, '%d/%m/%Y')
+
+        return datetime(returnDate.year, returnDate.month, returnDate.day)
+
+    def generateReviews(self, latestVersion=False, date=None, outputFileName=None):
+        if self._customerReviewsLink == None:
+            self.getAppInfo()
+        if self._customerReviewsLink == None:
+            raise 'Can\'t get "Customer Reviews link"'
+
+        minDate = None
+        maxDate = None
+        if date:
+            if not '-' in date:
+                minDate = self._parseDate(date)
+                maxDate = minDate
+            else:
+                dateArray = date.split('-')
+                if len(dateArray[0]) > 0:
+                    minDate = self._parseDate(dateArray[0])
+                if len(dateArray[1]) > 0:
+                    maxDate = self._parseDate(dateArray[1])
+                if maxDate != None and minDate != None and maxDate < minDate:
+                    tmpDate = maxDate
+                    maxDate = minDate
+                    minDate = tmpDate
+
+        logging.debug('From: %s' %minDate)
+        logging.debug('To: %s' %maxDate)
+        tree = self._parser.parseTreeForURL(self._customerReviewsLink)
+        metadata = self._parser.getReviewsPageMetadata(tree)
+        if (latestVersion):
+            tree = self._parser.parseTreeForURL(metadata.currentVersion)
+        else:
+            tree = self._parser.parseTreeForURL(metadata.allVersions)
+        tree = self._parser.parseTreeForURL(metadata.allReviews)
+
+        reviews = {}
+        logging.info('Fetching reviews for %d countries. Please wait...' % len(metadata.countries))
+        percentDone = 0
+        percentStep = 100 / len(metadata.countries)
+        totalReviews = 0
+        for countryName, countryId in metadata.countries.items():
+            logging.debug('Fetching reviews for ' + countryName)
+            formData = {metadata.countriesSelectName: countryId}
+            postFormResponse = requests.post(ITUNESCONNECT_URL + metadata.countryFormSubmitAction, data = formData, cookies=cookie_jar)
+            reviewsForCountry = self._parser.parseReviews(postFormResponse.content, minDate=minDate, maxDate=maxDate)
+            if reviewsForCountry != None and len(reviewsForCountry) != 0:
+                reviews[countryName] = reviewsForCountry
+                totalReviews = totalReviews + len(reviewsForCountry)
+            if not config.options['--silent'] and not config.options['--verbose']:
+                percentDone = percentDone + percentStep
+                print >> sys.stdout, "\r%d%%" %percentDone,
+                sys.stdout.flush()
+
+        if not config.options['--silent'] and not config.options['--verbose']:
+            print >> sys.stdout, "\rDone\n",
+            sys.stdout.flush()
+
+        logging.debug("Got %d reviews." % totalReviews)
+
+        if outputFileName:
+            with open(outputFileName, 'wb') as fp:
+                json.dump(reviews, fp, sort_keys=False, indent=4, separators=(',', ': '))
+        else:
+            print reviews

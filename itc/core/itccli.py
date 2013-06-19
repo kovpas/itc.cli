@@ -36,7 +36,7 @@ Options:
   -z                          Automatically click 'Continue' button if appears after login.
   -o --output-file FILE       Name of file to save promocodes or reviews to.
   -d --date-range DATERANGE   Get reviews specified with this date range. Format [date][-][date].
-                                For more information, please, refer to https://github.com/kovpas/itc.cli
+                                For more information, please, refer to https://github.com/kovpas/itc.cli.
   -l --latest-version         Get reviews for current version only.
 
 """

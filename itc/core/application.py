@@ -634,14 +634,17 @@ class ITCApplication(object):
 
 ################## Reviews management ##################
     def _parseDate(self, date):
+        returnDate = None
         if date == 'today':
-            return datetime.today()
+            returnDate = datetime.today()
         elif date == 'yesterday':
-            return datetime.today() - timedelta(1)
+            returnDate = datetime.today() - timedelta(1)
         elif not '/' in date:
-            return datetime.today() - timedelta(int(date))
+            returnDate = datetime.today() - timedelta(int(date))
+        else:
+            returnDate = datetime.strptime(date, '%d/%m/%Y')
 
-        return datetime.strptime(date, '%d/%m/%Y')
+        return datetime(returnDate.year, returnDate.month, returnDate.day)
 
     def generateReviews(self, latestVersion=False, date=None, outputFileName=None):
         if self._customerReviewsLink == None:
@@ -666,6 +669,8 @@ class ITCApplication(object):
                     maxDate = minDate
                     minDate = tmpDate
 
+        logging.debug('From: %s' %minDate)
+        logging.debug('To: %s' %maxDate)
         tree = self._parser.parseTreeForURL(self._customerReviewsLink)
         metadata = self._parser.getReviewsPageMetadata(tree)
         if (latestVersion):
@@ -678,6 +683,7 @@ class ITCApplication(object):
         logging.info('Fetching reviews for %d countries. Please wait...' % len(metadata.countries))
         percentDone = 0
         percentStep = 100 / len(metadata.countries)
+        totalReviews = 0
         for countryName, countryId in metadata.countries.items():
             logging.debug('Fetching reviews for ' + countryName)
             formData = {metadata.countriesSelectName: countryId}
@@ -685,6 +691,7 @@ class ITCApplication(object):
             reviewsForCountry = self._parser.parseReviews(postFormResponse.content, minDate=minDate, maxDate=maxDate)
             if reviewsForCountry != None and len(reviewsForCountry) != 0:
                 reviews[countryName] = reviewsForCountry
+                totalReviews = totalReviews + len(reviewsForCountry)
             if not config.options['--silent'] and not config.options['--verbose']:
                 percentDone = percentDone + percentStep
                 print >> sys.stdout, "\r%d%%" %percentDone,
@@ -693,6 +700,8 @@ class ITCApplication(object):
         if not config.options['--silent'] and not config.options['--verbose']:
             print >> sys.stdout, "\rDone\n",
             sys.stdout.flush()
+
+        logging.debug("Got %d reviews." % totalReviews)
 
         if outputFileName:
             with open(outputFileName, 'wb') as fp:

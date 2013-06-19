@@ -5,6 +5,7 @@ Usage:
     itc update [-c FILE] [-a APP_ID] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc generate [-a APP_ID] [-e APP_VER] [-i] [-c FILE] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc promo -a APP_ID [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE] <amount>
+    itc reviews -a APP_ID [-d DATE] [-l] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE]
     itc (-h | --help)
 
 Commands:
@@ -14,6 +15,7 @@ Commands:
                                 If no --application-id provided, configuration files for all 
                                 applications will be created.
   promo                       Download specified <amount> of promocodes.
+  reviews                     Get reviews for a specified application.
 
 Options:
   -h --help                   Print help (this message) and exit.
@@ -32,7 +34,10 @@ Options:
                                 in configuration file.
   -n --no-cookies             Remove saved authentication cookies and authenticate again.
   -z                          Automatically click 'Continue' button if appears after login.
-  -o --output-file FILE       Name of file to save promocodes to.
+  -o --output-file FILE       Name of file to save promocodes or reviews to.
+  -d --date-range DATERANGE   Get reviews specified with this date range. Format [date][-][date].
+                                For more information, please, refer to https://github.com/kovpas/itc.cli.
+  -l --latest-version         Get reviews for current version only.
 
 """
 
@@ -172,6 +177,15 @@ def main():
                     outFile.write(promocodes)
             else: # just print to console. Using print as we want to suppress silence option
                 print promocodes
+
+        return
+
+    if options['reviews']:
+        if not options['--application-id'] in server.applications: 
+            logging.error("Provide correct application id (--application-id or -a option)")
+        else:
+            application = server.applications[options['--application-id']]
+            application.generateReviews(options['--latest-version'], options['--date-range'], options['--output-file'])
 
         return
 

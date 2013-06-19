@@ -12,9 +12,10 @@ Script allows to add/edit metadata, uploads and in-app purchases of the applicat
 Have you ever had to create 1000 inapp purchases by template? Or may be to upload 15 localized screenshots for each of 25 languages you app supports? This script does that for you :)  
 <sub>This is my first ever application written in python, so, please don't judge me too harshly ;)</sub>
 
-[ [Installation](#installation) &bull; [Usage](#usage) &bull; [Configuration file](#configuration-file)
+[ [Installation](#installation) &bull; [iTC login](#itc-login) 
+&bull; [Update application metadata](#update-application-metadata)
 &bull; [Configuration file autogeneration](#automagically-generate-config-file)
-&bull; [Promo codes](#promo-codes) &bull; [Logging](#logging) &bull; [Roadmap](#roadmap) &bull; [License](#license) ]
+&bull; [Promo codes](#promo-codes) &bull; [Reviews](#reviews) &bull; [Logging](#logging) &bull; [Roadmap](#roadmap) &bull; [License](#license) ]
 
 Installation
 =======
@@ -34,16 +35,16 @@ Installation
 
 Now ````itc```` command is available to run
 
-Usage
+iTC login
 =======
 
-```` itc update --username apple_id --password my_password````
+```` itc login --username apple_id --password my_password````
 
 ````--password```` parameter is not mandatory, so you can input password manually and securely after script startup
 
 If all dependencies installed properly, you will see something like this:
 
-```` itc --username apple_id````  
+```` itc login --username apple_id````  
 > Password:  
 INFO:root:Login: logged in. Session cookies are saved to .itc-cli-cookies.txt  
 INFO:root:Application found: "App 1" (123456789)  
@@ -52,10 +53,10 @@ INFO:root:Nothing to do.
 
 Every time you run the script, it uses cookies which are stored in the file ````.itc-cli-cookies.txt```` and checks if cookies are still valid or script needs to log in again. That means that once you've entered your password, you don't need to enter it anymore as long as session is alive on iTunesConnect's servers. In case if you want to ignore cookie file and re-enter credentials, add ````--no-cookies```` parameter.
 
-Configuration file
+Update application metadata
 =======
 
-Party begins with ````--config_file```` parameter:
+Party starts with ````--config_file```` parameter:
 
 ````itc update --username apple_id --config-file actions.json````
 
@@ -329,6 +330,26 @@ With ````promo```` command, script generates a certain amount of promocodes for 
 
 Please note, that 'Ready for Sale' version must exist for application.
 
+Reviews
+=======
+
+Use ````reviews```` command, to download reviews in JSON format:  
+````./itc/bin/itc reviews -a APP_ID -o reviews.txt````
+
+By default, itc will fetch all available reviews, but you can use ````-l```` option to limit scope to latest version only.  
+You may also specify a date range to get reviews. In order to do that, use ````-d```` property:
+
+````./itc/bin/itc reviews ... -d 13/06/2013-18/06/2013```` - this will fetch all reviews within specified period  
+````./itc/bin/itc reviews ... -d 13/06/2013-```` - this will fetch all reviews starting from 13th of June  
+````./itc/bin/itc reviews ... -d -13/06/2013```` - this will fetch all reviews up to 13th of June  
+````./itc/bin/itc reviews ... -d 13/06/2013```` - this will fetch all reviews matching exact date - 13th of June  
+
+Date format could be ````dd/mm/yyyy````, ````today````, ````yesterday```` or a number of days from today:
+
+````./itc/bin/itc reviews ... -d yesterday```` - reviews for yesterday (not including today! to include today, use ````yesterday-````)  
+````./itc/bin/itc reviews ... -d 6-```` - reviews for last 6 days  
+
+
 Logging
 =======  
 
@@ -348,7 +369,7 @@ There are several features planned to be implemented:
 * ~~inapp purchases management~~  
 * ~~promo codes~~  
 * sales reports  
-* user reviews  
+* ~~user reviews~~  
 
 License
 =======

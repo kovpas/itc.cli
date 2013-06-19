@@ -4,6 +4,8 @@ import os
 import re
 import json
 import logging
+import sys
+from datetime import datetime, timedelta
 
 import requests
 
@@ -220,23 +222,6 @@ class ITCApplication(object):
         with open(filename, 'wb') as fp:
             json.dump(resultDict, fp, sort_keys=False, indent=4, separators=(',', ': '))
 
-
-    def __generateReviewsForVersion(self, version):
-        pass
-
-
-    def generateReviews(self, versionString=None):
-        if self._customerReviewsLink == None:
-            self.getAppInfo()
-        if self._customerReviewsLink == None:
-            raise 'Can\'t get "Customer Reviews link"'
-
-        # TODO: parse multiple pages of inapps.
-        tree = self._parser.parseTreeForURL(self._manageInappsLink)
-        resultDict = self.__generateReviewsForVersion(versionString)
-        filename = str(self.applicationId) + '.reviews.json'
-        with open(filename, 'wb') as fp:
-            json.dump(resultDict, fp, sort_keys=False, indent=4, separators=(',', ': '))
 
     def __dataFromStringOrFile(self, value, languageCode=None):
         if (isinstance(value, basestring)):
@@ -609,7 +594,7 @@ class ITCApplication(object):
         if len(self.versions) == 0:
             raise 'Can\'t get application versions'
 
-        # Ve need non-editable version to get promocodes from
+        # We need non-editable version to get promocodes from
         versionString = next((versionString for versionString, version in self.versions.items() if version['statusString'] == "Ready for Sale"), None)
         if versionString == None:
             raise 'No "Ready for Sale" versions found'
@@ -646,3 +631,80 @@ class ITCApplication(object):
                                       , cookies=cookie_jar)
 
         return codes.text
+
+################## Reviews management ##################
+    def _parseDate(self, date):
+        returnDate = None
+        if date == 'today':
+            returnDate = datetime.today()
+        elif date == 'yesterday':
+            returnDate = datetime.today() - timedelta(1)
+        elif not '/' in date:
+            returnDate = datetime.today() - timedelta(int(date))
+        else:
+            returnDate = datetime.strptime(date, '%d/%m/%Y')
+
+        return datetime(returnDate.year, returnDate.month, returnDate.day)
+
+    def generateReviews(self, latestVersion=False, date=None, outputFileName=None):
+        if self._customerReviewsLink == None:
+            self.getAppInfo()
+        if self._customerReviewsLink == None:
+            raise 'Can\'t get "Customer Reviews link"'
+
+        minDate = None
+        maxDate = None
+        if date:
+            if not '-' in date:
+                minDate = self._parseDate(date)
+                maxDate = minDate
+            else:
+                dateArray = date.split('-')
+                if len(dateArray[0]) > 0:
+                    minDate = self._parseDate(dateArray[0])
+                if len(dateArray[1]) > 0:
+                    maxDate = self._parseDate(dateArray[1])
+                if maxDate != None and minDate != None and maxDate < minDate:
+                    tmpDate = maxDate
+                    maxDate = minDate
+                    minDate = tmpDate
+
+        logging.debug('From: %s' %minDate)
+        logging.debug('To: %s' %maxDate)
+        tree = self._parser.parseTreeForURL(self._customerReviewsLink)
+        metadata = self._parser.getReviewsPageMetadata(tree)
+        if (latestVersion):
+            tree = self._parser.parseTreeForURL(metadata.currentVersion)
+        else:
+            tree = self._parser.parseTreeForURL(metadata.allVersions)
+        tree = self._parser.parseTreeForURL(metadata.allReviews)
+
+        reviews = {}
+        logging.info('Fetching reviews for %d countries. Please wait...' % len(metadata.countries))
+        percentDone = 0
+        percentStep = 100 / len(metadata.countries)
+        totalReviews = 0
+        for countryName, countryId in metadata.countries.items():
+            logging.debug('Fetching reviews for ' + countryName)
+            formData = {metadata.countriesSelectName: countryId}
+            postFormResponse = requests.post(ITUNESCONNECT_URL + metadata.countryFormSubmitAction, data = formData, cookies=cookie_jar)
+            reviewsForCountry = self._parser.parseReviews(postFormResponse.content, minDate=minDate, maxDate=maxDate)
+            if reviewsForCountry != None and len(reviewsForCountry) != 0:
+                reviews[countryName] = reviewsForCountry
+                totalReviews = totalReviews + len(reviewsForCountry)
+            if not config.options['--silent'] and not config.options['--verbose']:
+                percentDone = percentDone + percentStep
+                print >> sys.stdout, "\r%d%%" %percentDone,
+                sys.stdout.flush()
+
+        if not config.options['--silent'] and not config.options['--verbose']:
+            print >> sys.stdout, "\rDone\n",
+            sys.stdout.flush()
+
+        logging.debug("Got %d reviews." % totalReviews)
+
+        if outputFileName:
+            with open(outputFileName, 'wb') as fp:
+                json.dump(reviews, fp, sort_keys=False, indent=4, separators=(',', ': '))
+        else:
+            print reviews

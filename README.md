@@ -1,7 +1,7 @@
 Disclaimer
 =======
 
-**This script is still on early beta stage, so use it at your own risk.**
+**This script is still in beta state, so use it at your own risk.**
 
 itc.cli
 =======

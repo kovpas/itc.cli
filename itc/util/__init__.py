@@ -27,6 +27,19 @@ def dict_merge(a, b):
             result[k] = deepcopy(v)
     return result
 
+def dataFromStringOrFile(value, languageCode=None):
+    if (isinstance(value, basestring)):
+        return value
+    elif (isinstance(value, dict)):
+        if ('file name format' in value):
+            descriptionFilePath = value['file name format']
+            if languageCode != None:
+                replace_language = ALIASES.language_aliases.get(languageCode, languageCode)
+                descriptionFilePath = descriptionFilePath.replace('{language}', replace_language)
+            return open(descriptionFilePath, 'r').read()
+
+    return ""
+
 class EnhancedFile(file):
     def __init__(self, *args, **keyws):
         file.__init__(self, *args, **keyws)

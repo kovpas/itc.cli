@@ -14,6 +14,7 @@ Have you ever had to create 1000 inapp purchases by template? Or may be to uploa
 
 [ [Installation](#installation) &bull; [iTC login](#itc-login) 
 &bull; [Update application metadata](#update-application-metadata)
+&bull; [Create new application](#create-new-application)
 &bull; [Configuration file autogeneration](#automagically-generate-config-file)
 &bull; [Promo codes](#promo-codes) &bull; [Reviews](#reviews) &bull; [Logging](#logging) &bull; [Roadmap](#roadmap) &bull; [License](#license) ]
 
@@ -316,6 +317,59 @@ This part of configuration is self-explanatory
   }
 }
 ````
+
+Create new application
+=======
+
+In order to create a new application, you should use ````create```` command and provide a configuration file:  
+````./itc/bin/itc create -c newapp.json````
+
+Configuration file looks similar to the one, which you use for ````update````. It contains same ````config```` and ````application```` sections. In ````application```` section two subsections are mandatory: ````app review information```` (see [Application review notes](#application-review-notes) for more info) and ````new app````.
+
+````JSON
+{
+  "new app": {
+            "default language"       : "en",
+            "name"                   : "testapp9.itc.com",
+            "sku number"             : "testapp9.itc.com",
+            "bundle id"              : "*",
+            "bundle id suffix"       : "testapp9.itc.com",
+            "availability date"      : "Jan 01 2014",
+            "countries"              : {"type": "include", "list":["Iceland", "Fiji"]},
+            "price tier"             : 0,
+            "discount"               : false,
+            "version"                : "1.0",
+            "copyright"              : "Company",
+            "primary category"       : "Games",
+            "primary subcategory 1"  : "Adventure",
+            "primary subcategory 2"  : "Racing",
+            "secondary category"     : "Health & Fitness",
+            "app rating"             : [0, 1, 0, 1, 2, 0, 1, 2, 0, 0],
+            "large app icon"         : {"file name format": "app data/icon.png"},
+            "screenshots"            : {"iphone": [1], "iphone 5": [1]},
+            "eula text"              : "EULA Text. This param supports 'file name format' property",
+            "eula countries"         : {"type": "exclude", "list":["Iceland", "Fiji"]},
+            "description"            : "Short description",
+            "keywords"               : "keywords",
+            "support url"            : "http://support_url_default.com",
+            "marketing url"          : "http://marketing_url_default.com",
+            "privacy policy url"     : "http://support_url_default.com"
+        }
+}
+````
+
+A couple of notes. The following fields are optional:  
+* ````countries```` - if not provided, all countries are included  
+* ````discount```` - false by default  
+* ````eula text````  
+* ````eula countries```` - if not provided, all countries are included  
+* ````marketing url````  
+* ````privacy policy url````  
+
+The following fields support both string and [````file name format````](#metadata) option:  
+* ````eula text````  
+* ````description````  
+* ````keywords````  
 
 Automagically generate config file
 =======

@@ -2,7 +2,8 @@
 
 Usage: 
     itc login [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
-    itc update [-c FILE] [-a APP_ID] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc update -c FILE [-a APP_ID] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc create -c FILE [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc generate [-a APP_ID] [-e APP_VER] [-i] [-c FILE] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc promo -a APP_ID [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE] <amount>
     itc reviews -a APP_ID [-d DATE] [-l] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE]
@@ -11,6 +12,7 @@ Usage:
 Commands:
   login                       Logs in with specified credentials.
   update                      Update specified app with information provided in a config file.
+  create                      Creates new app using information provided in a config file.
   generate                    Generate configuration file for a specified application id and version.
                                 If no --application-id provided, configuration files for all 
                                 applications will be created.
@@ -199,8 +201,8 @@ def main():
     if options['--application-id']:
         applicationId = int(options['--application-id'])
     application = None
-    commonActions = applicationDict['metadata'].get('general', {})
-    specificLangCommands = applicationDict['metadata']['languages']
+    commonActions = applicationDict.get('metadata', {}).get('general', {})
+    specificLangCommands = applicationDict.get('metadata', {}).get('languages', {})
     langActions = {}
     filename_format = cfg.get('config', {}) \
                            .get('images', {}) \
@@ -211,7 +213,14 @@ def main():
 
     logging.debug(langActions)
 
-    if applicationId in server.applications:
+    if applicationId not in server.applications and not options['create']:
+        logging.warning('No application with id ' + str(applicationId))
+        choice = raw_input('Do you want to create a new one? [y/n]')
+        options['create'] = True if choice.strip().lower() in ('y', 'yes', '') else False
+
+    if options['create']:
+        server.createNewApp(applicationDict, filename_format=filename_format)
+    elif applicationId in server.applications:
         application = server.applications[applicationId]
 
         for lang in langActions:
@@ -291,6 +300,5 @@ def main():
 
                 realindex += 1
     else:
-        print server.applications
-        logging.error('No application with id ' + applicationId)
+        logging.error('No application with id ' + str(applicationId))
         return

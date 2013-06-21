@@ -14,7 +14,7 @@ Have you ever had to create 1000 inapp purchases by template? Or may be to uploa
 
 [ [Installation](#installation) &bull; [iTC login](#itc-login) 
 &bull; [Update application metadata](#update-application-metadata)
-&bull; [Create new application](#create-new-application)
+&bull; [Create new application](#create-new-application)  
 &bull; [Configuration file autogeneration](#automagically-generate-config-file)
 &bull; [Promo codes](#promo-codes) &bull; [Reviews](#reviews) &bull; [Logging](#logging) &bull; [Roadmap](#roadmap) &bull; [License](#license) ]
 

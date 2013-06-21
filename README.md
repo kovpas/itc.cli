@@ -12,12 +12,15 @@ Script allows to add/edit metadata, uploads and in-app purchases of the applicat
 Have you ever had to create 1000 inapp purchases by template? Or may be to upload 15 localized screenshots for each of 25 languages you app supports? This script does that for you :)  
 <sub>This is my first ever application written in python, so, please don't judge me too harshly ;)</sub>
 
-[ [Installation](#installation) &bull; [iTC login](#itc-login) 
-&bull; [Update application metadata](#update-application-metadata)
+&bull; [Installation](#installation)  
+&bull; [iTC login](#itc-login)  
+&bull; [Update application metadata](#update-application-metadata)  
 &bull; [Create new application](#create-new-application)  
-&bull; [Configuration file autogeneration](#automagically-generate-config-file)
-&bull; [Promo codes](#promo-codes) &bull; [Reviews](#reviews) &bull; [Logging](#logging) &bull; [Roadmap](#roadmap) &bull; [License](#license) ]
-
+&bull; [Promo codes](#promo-codes)  
+&bull; [Reviews](#reviews)  
+&bull; [Logging](#logging)  
+&bull; [Roadmap](#roadmap)  
+&bull; [License](#license)  
 Installation
 =======
 
@@ -422,8 +425,8 @@ Roadmap
 There are several features planned to be implemented:  
 * ~~inapp purchases management~~  
 * ~~promo codes~~  
-* sales reports  
 * ~~user reviews~~  
+* sales reports  
 
 License
 =======

@@ -1,7 +1,7 @@
 Disclaimer
 =======
 
-**This script is still on early beta stage, so use it at your own risk.**
+**This script is still in beta state, so use it at your own risk.**
 
 itc.cli
 =======
@@ -12,10 +12,15 @@ Script allows to add/edit metadata, uploads and in-app purchases of the applicat
 Have you ever had to create 1000 inapp purchases by template? Or may be to upload 15 localized screenshots for each of 25 languages you app supports? This script does that for you :)  
 <sub>This is my first ever application written in python, so, please don't judge me too harshly ;)</sub>
 
-License
-=======
-itc.cli is available under the MIT license.
-
+&bull; [Installation](#installation)  
+&bull; [iTC login](#itc-login)  
+&bull; [Update application metadata](#update-application-metadata)  
+&bull; [Create new application](#create-new-application)  
+&bull; [Promo codes](#promo-codes)  
+&bull; [Reviews](#reviews)  
+&bull; [Logging](#logging)  
+&bull; [Roadmap](#roadmap)  
+&bull; [License](#license)  
 Installation
 =======
 
@@ -34,16 +39,16 @@ Installation
 
 Now ````itc```` command is available to run
 
-Usage
+iTC login
 =======
 
-```` itc --username apple_id --password my_password````
+```` itc login --username apple_id --password my_password````
 
 ````--password```` parameter is not mandatory, so you can input password manually and securely after script startup
 
 If all dependencies installed properly, you will see something like this:
 
-```` itc --username apple_id````  
+```` itc login --username apple_id````  
 > Password:  
 INFO:root:Login: logged in. Session cookies are saved to .itc-cli-cookies.txt  
 INFO:root:Application found: "App 1" (123456789)  
@@ -52,12 +57,12 @@ INFO:root:Nothing to do.
 
 Every time you run the script, it uses cookies which are stored in the file ````.itc-cli-cookies.txt```` and checks if cookies are still valid or script needs to log in again. That means that once you've entered your password, you don't need to enter it anymore as long as session is alive on iTunesConnect's servers. In case if you want to ignore cookie file and re-enter credentials, add ````--no-cookies```` parameter.
 
-Configuration file
+Update application metadata
 =======
 
-Party begins with ````--config_file```` parameter:
+Party starts with ````--config_file```` parameter:
 
-````itc --username apple_id --config-file actions.json````
+````itc update --username apple_id --config-file actions.json````
 
 Config file is a simple JSON file (please note, that it's a _strict_ JSON. You must avoid constructions like **,]** or **,}** (i.e. ````[1,2,]```` or ````{"a":"avalue", "b": "bvalue",}````). If your config file contains errors, you'll get an exception with the exact position of a wrong character).
 
@@ -316,10 +321,91 @@ This part of configuration is self-explanatory
 }
 ````
 
+Create new application
+=======
+
+In order to create a new application, you should use ````create```` command and provide a configuration file:  
+````./itc/bin/itc create -c newapp.json````
+
+Configuration file looks similar to the one, which you use for ````update````. It contains same ````config```` and ````application```` sections. In ````application```` section two subsections are mandatory: ````app review information```` (see [Application review notes](#application-review-notes) for more info) and ````new app````.
+
+````JSON
+{
+  "new app": {
+            "default language"       : "en",
+            "name"                   : "testapp9.itc.com",
+            "sku number"             : "testapp9.itc.com",
+            "bundle id"              : "*",
+            "bundle id suffix"       : "testapp9.itc.com",
+            "availability date"      : "Jan 01 2014",
+            "countries"              : {"type": "include", "list":["Iceland", "Fiji"]},
+            "price tier"             : 0,
+            "discount"               : false,
+            "version"                : "1.0",
+            "copyright"              : "Company",
+            "primary category"       : "Games",
+            "primary subcategory 1"  : "Adventure",
+            "primary subcategory 2"  : "Racing",
+            "secondary category"     : "Health & Fitness",
+            "app rating"             : [0, 1, 0, 1, 2, 0, 1, 2, 0, 0],
+            "large app icon"         : {"file name format": "app data/icon.png"},
+            "screenshots"            : {"iphone": [1], "iphone 5": [1]},
+            "eula text"              : "EULA Text. This param supports 'file name format' property",
+            "eula countries"         : {"type": "exclude", "list":["Iceland", "Fiji"]},
+            "description"            : "Short description",
+            "keywords"               : "keywords",
+            "support url"            : "http://support_url_default.com",
+            "marketing url"          : "http://marketing_url_default.com",
+            "privacy policy url"     : "http://support_url_default.com"
+        }
+}
+````
+
+A couple of notes. The following fields are optional:  
+* ````countries```` - if not provided, all countries are included  
+* ````discount```` - false by default  
+* ````eula text````  
+* ````eula countries```` - if not provided, all countries are included  
+* ````marketing url````  
+* ````privacy policy url````  
+
+The following fields support both string and [````file name format````](#metadata) option:  
+* ````eula text````  
+* ````description````  
+* ````keywords````  
+
 Automagically generate config file
 =======
 
-With ````--generate-config```` parameter script creates json file ({application_id}.json), which contains metadata for each language of the application. In case if no ````--application-id```` parameter passed to script, it iterates through all the applications for current account. If you want to include inapps into a generated configuration file, add ````--generate-config-inapp```` parameter.
+With ````generate```` command script creates json file ({application_id}.json), which contains metadata for each language of the application. In case if no ````--application-id```` parameter passed to script, it iterates through all the applications for current account. If you want to include inapps into a generated configuration file, add ````--generate-config-inapp```` parameter.
+
+Promo codes
+=======
+
+With ````promo```` command, script generates a certain amount of promocodes for a specified application and either prints them to console or writes to a file:  
+````./itc/bin/itc promo 3 -a APP_ID -o promocodes.txt````
+
+Please note, that 'Ready for Sale' version must exist for application.
+
+Reviews
+=======
+
+Use ````reviews```` command, to download reviews in JSON format:  
+````./itc/bin/itc reviews -a APP_ID -o reviews.txt````
+
+By default, itc will fetch all available reviews, but you can use ````-l```` option to limit scope to latest version only.  
+You may also specify a date range to get reviews. In order to do that, use ````-d```` property:
+
+````./itc/bin/itc reviews ... -d 13/06/2013-18/06/2013```` - this will fetch all reviews within specified period  
+````./itc/bin/itc reviews ... -d 13/06/2013-```` - this will fetch all reviews starting from 13th of June  
+````./itc/bin/itc reviews ... -d -13/06/2013```` - this will fetch all reviews up to 13th of June  
+````./itc/bin/itc reviews ... -d 13/06/2013```` - this will fetch all reviews matching exact date - 13th of June  
+
+Date format could be ````dd/mm/yyyy````, ````today````, ````yesterday```` or a number of days from today:
+
+````./itc/bin/itc reviews ... -d yesterday```` - reviews for yesterday (not including today! to include today, use ````yesterday-````)  
+````./itc/bin/itc reviews ... -d 6-```` - reviews for last 6 days  
+
 
 Logging
 =======  
@@ -338,6 +424,11 @@ Roadmap
 
 There are several features planned to be implemented:  
 * ~~inapp purchases management~~  
-* promo codes  
+* ~~promo codes~~  
+* ~~user reviews~~  
 * sales reports  
-* user reviews  
+
+License
+=======
+itc.cli is available under the MIT license.
+

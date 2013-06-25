@@ -1,9 +1,7 @@
-import os
-import sys
 from setuptools import setup, find_packages
 
 setup(name = "itc.cli",
-      version = "0.3.2",
+      version = "0.4",
       author = 'Pavel Mazurin',
       author_email = 'me@kovpas.ru',
       description = 'iTunesConnect command line interface.',

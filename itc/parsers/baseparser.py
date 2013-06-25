@@ -22,8 +22,10 @@ class BaseParser(object):
             raise
 
         if debugPrint or config.options['--verbose'] == 2:
-            if (config.options['-f']):
+            if config.options['-f']:
                 logging.debug(BeautifulSoup(response.content).prettify())
+            elif debugPrint:
+                logging.info(BeautifulSoup(response.content).prettify())
             else:
                 logging.debug(response.content)
 

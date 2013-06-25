@@ -1,25 +1,45 @@
 """Command line interface for iTunesConnect (https://github.com/kovpas/itc.cli)
 
-Usage: itc [-h] [-v | -vv [-f] | -s] [-n] [-z] [-g [-e APP_VER] [-i] | -c FILE] [-a APP_ID] [-u USERNAME] [-p PASSWORD] 
+Usage: 
+    itc login [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc update -c FILE [-a APP_ID] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc create -c FILE [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc generate [-a APP_ID] [-e APP_VER] [-i] [-c FILE] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc promo -a APP_ID [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE] <amount>
+    itc reviews -a APP_ID [-d DATE] [-l] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE]
+    itc (-h | --help)
+
+Commands:
+  login                       Logs in with specified credentials.
+  update                      Update specified app with information provided in a config file.
+  create                      Creates new app using information provided in a config file.
+  generate                    Generate configuration file for a specified application id and version.
+                                If no --application-id provided, configuration files for all 
+                                applications will be created.
+  promo                       Download specified <amount> of promocodes.
+  reviews                     Get reviews for a specified application.
 
 Options:
-  -h --help                   Print help (this message) and exit
+  -h --help                   Print help (this message) and exit.
   -v --verbose                Verbose mode. Enables debug print to console.
   -vv                         Enables HTTP response print to a console.
   -f                          Nicely format printed html response.
   -s --silent                 Silent mode. Only error messages are printed.
   -u --username USERNAME      iTunesConnect username.
   -p --password PASSWORD      iTunesConnect password.
-  -g --generate-config        Generate initial configuration file based on current applications' state.
-                                If no --application-id provided, configuration files for all applications will be created.
   -e --application-version APP_VER  
                               Application version to generate config.
                                 If not provided, config will be generated for latest version.
   -i --generate-config-inapp  Generate config for inapps as well.
   -c --config-file FILE       Configuration file. For more details on format see https://github.com/kovpas/itc.cli.
-  -a --application-id APP_ID  Application id to process. This property has more priority than 'application id' in configuration file.
+  -a --application-id APP_ID  Application id to process. This property has more priority than 'application id'
+                                in configuration file.
   -n --no-cookies             Remove saved authentication cookies and authenticate again.
   -z                          Automatically click 'Continue' button if appears after login.
+  -o --output-file FILE       Name of file to save promocodes or reviews to.
+  -d --date-range DATERANGE   Get reviews specified with this date range. Format [date][-][date].
+                                For more information, please, refer to https://github.com/kovpas/itc.cli.
+  -l --latest-version         Get reviews for current version only.
 
 """
 
@@ -30,7 +50,6 @@ import sys
 import json
 import getpass
 from copy import deepcopy 
-from argparse import ArgumentParser
 
 from itc.core.server import ITCServer
 from itc.util import *
@@ -133,7 +152,7 @@ def main():
         options['--application-id'] = int(options['--application-id'])
 
 
-    if options['--generate-config']:
+    if options['generate']:
         if options['--application-id']:
             if options['--application-id'] in server.applications: 
                 applications = {}
@@ -149,12 +168,28 @@ def main():
 
         return
 
-    # if options['--reviews']:
-    #     if not options['--application-id'] in server.applications: 
-    #         logging.error("Provide correct application id (--application-id or -a option)")
-    #     else:
-    #         application = server.applications[options['--application-id']]
-    #         application.generateReviews(options['--application-version'])
+    if options['promo']:
+        if not options['--application-id'] in server.applications: 
+            logging.error("Provide correct application id (--application-id or -a option)")
+        else:
+            application = server.applications[options['--application-id']]
+            promocodes = application.getPromocodes(options['<amount>'])
+            if options['--output-file']:
+                with open(options['--output-file'], 'a') as outFile:
+                    outFile.write(promocodes)
+            else: # just print to console. Using print as we want to suppress silence option
+                print promocodes
+
+        return
+
+    if options['reviews']:
+        if not options['--application-id'] in server.applications: 
+            logging.error("Provide correct application id (--application-id or -a option)")
+        else:
+            application = server.applications[options['--application-id']]
+            application.generateReviews(options['--latest-version'], options['--date-range'], options['--output-file'])
+
+        return
 
     cfg = __parse_configuration_file()
     if len(cfg) == 0:
@@ -166,8 +201,8 @@ def main():
     if options['--application-id']:
         applicationId = int(options['--application-id'])
     application = None
-    commonActions = applicationDict['metadata'].get('general', {})
-    specificLangCommands = applicationDict['metadata']['languages']
+    commonActions = applicationDict.get('metadata', {}).get('general', {})
+    specificLangCommands = applicationDict.get('metadata', {}).get('languages', {})
     langActions = {}
     filename_format = cfg.get('config', {}) \
                            .get('images', {}) \
@@ -178,7 +213,14 @@ def main():
 
     logging.debug(langActions)
 
-    if applicationId in server.applications:
+    if applicationId not in server.applications and not options['create']:
+        logging.warning('No application with id ' + str(applicationId))
+        choice = raw_input('Do you want to create a new one? [y/n]')
+        options['create'] = True if choice.strip().lower() in ('y', 'yes', '') else False
+
+    if options['create']:
+        server.createNewApp(applicationDict, filename_format=filename_format)
+    elif applicationId in server.applications:
         application = server.applications[applicationId]
 
         for lang in langActions:
@@ -258,6 +300,5 @@ def main():
 
                 realindex += 1
     else:
-        print server.applications
-        logging.error('No application with id ' + applicationId)
+        logging.error('No application with id ' + str(applicationId))
         return

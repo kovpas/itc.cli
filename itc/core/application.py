@@ -288,7 +288,7 @@ class ITCApplication(ITCImageUploader):
         logging.debug(formData)
         # formData['uploadKey'] = self._uploadSessionData[DEVICE_TYPE.iPhone5]['key']
 
-        postFormResponse = requests.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies=cookie_jar)
+        postFormResponse = self._parser.requests_session.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies=cookie_jar)
 
         if postFormResponse.status_code != 200:
             raise 'Wrong response from iTunesConnect. Status code: ' + str(postFormResponse.status_code)
@@ -331,7 +331,7 @@ class ITCApplication(ITCImageUploader):
         formData[formNames['password']]      = appReviewInfo.get('password', metadata.formData['password'])
 
         logging.debug(formData)
-        postFormResponse = requests.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies=cookie_jar)
+        postFormResponse = self._parser.requests_session.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies=cookie_jar)
 
         if postFormResponse.status_code != 200:
             raise 'Wrong response from iTunesConnect. Status code: ' + str(postFormResponse.status_code)
@@ -421,7 +421,7 @@ class ITCApplication(ITCImageUploader):
 
         logging.info('Searching for inapp with id ' + inappId)
 
-        searchResponse = requests.get(ITUNESCONNECT_URL + searchAction + "?query=" + inappId, cookies=cookie_jar)
+        searchResponse = self._parser.requests_session.get(ITUNESCONNECT_URL + searchAction + "?query=" + inappId, cookies=cookie_jar)
 
         if searchResponse.status_code != 200:
             raise 'Wrong response from iTunesConnect. Status code: ' + str(searchResponse.status_code)
@@ -509,19 +509,19 @@ class ITCApplication(ITCImageUploader):
         metadata = self._parser.parsePromocodesPageMetadata(tree)
         formData = {metadata.continueButton + '.x': 46, metadata.continueButton + '.y': 10}
         formData[metadata.amountName] = amount
-        postFormResponse = requests.post(ITUNESCONNECT_URL + metadata.submitAction, data = formData, cookies=cookie_jar)
+        postFormResponse = self._parser.requests_session.post(ITUNESCONNECT_URL + metadata.submitAction, data = formData, cookies=cookie_jar)
 
         #accept license agreement
         logging.info('Accepting license agreement')
         metadata = self._parser.parsePromocodesLicenseAgreementPage(postFormResponse.text)
         formData = {metadata.continueButton + '.x': 46, metadata.continueButton + '.y': 10}
         formData[metadata.agreeTickName] = metadata.agreeTickName
-        postFormResponse = requests.post(ITUNESCONNECT_URL + metadata.submitAction, data = formData, cookies=cookie_jar)
+        postFormResponse = self._parser.requests_session.post(ITUNESCONNECT_URL + metadata.submitAction, data = formData, cookies=cookie_jar)
 
         #download promocodes
         logging.info('Downloading promocodes')
         downloadCodesLink = self._parser.getDownloadCodesLink(postFormResponse.text)
-        codes = requests.get(ITUNESCONNECT_URL + downloadCodesLink
+        codes = self._parser.requests_session.get(ITUNESCONNECT_URL + downloadCodesLink
                                       , cookies=cookie_jar)
 
         return codes.text
@@ -581,7 +581,7 @@ class ITCApplication(ITCImageUploader):
         for countryName, countryId in metadata.countries.items():
             logging.debug('Fetching reviews for ' + countryName)
             formData = {metadata.countriesSelectName: countryId}
-            postFormResponse = requests.post(ITUNESCONNECT_URL + metadata.countryFormSubmitAction, data = formData, cookies=cookie_jar)
+            postFormResponse = self._parser.requests_session.post(ITUNESCONNECT_URL + metadata.countryFormSubmitAction, data = formData, cookies=cookie_jar)
             reviewsForCountry = self._parser.parseReviews(postFormResponse.content, minDate=minDate, maxDate=maxDate)
             if reviewsForCountry != None and len(reviewsForCountry) != 0:
                 reviews[countryName] = reviewsForCountry
@@ -595,7 +595,7 @@ class ITCApplication(ITCImageUploader):
             print >> sys.stdout, "\rDone\n",
             sys.stdout.flush()
 
-        logging.debug("Got %d reviews." % totalReviews)
+        logging.info("Got %d reviews." % totalReviews)
 
         if outputFileName:
             with open(outputFileName, 'wb') as fp:

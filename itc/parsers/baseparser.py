@@ -8,15 +8,17 @@ from itc.conf import *
 
 class BaseParser(object):
     parser = None
+    requests_session = None
     def __init__(self):
+        self.requests_session = requests.session()
         self.parser = htmlParser
 
     def parseTreeForURL(self, url, method="GET", payload=None, debugPrint=False):
         response = None
         if method == "GET":
-            response = requests.get(ITUNESCONNECT_URL + url, cookies=cookie_jar)
+            response = self.requests_session.get(ITUNESCONNECT_URL + url, cookies=cookie_jar)
         elif method == "POST":
-            response = requests.post(ITUNESCONNECT_URL + url, payload, cookies=cookie_jar)
+            response = self.requests_session.post(ITUNESCONNECT_URL + url, payload, cookies=cookie_jar)
 
         if response == None:
             raise

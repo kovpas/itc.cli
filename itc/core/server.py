@@ -44,7 +44,7 @@ class ITCServer(ITCImageUploader):
         if not self.isLoggedIn or not self._logoutURL:
             return
 
-        requests.get(ITUNESCONNECT_URL + self._logoutURL, cookies=cookie_jar)
+        self._parser.requests_session.get(ITUNESCONNECT_URL + self._logoutURL, cookies=cookie_jar)
         self.__cleanup()
 
     def checkContinueButton(self, mainPageTree):

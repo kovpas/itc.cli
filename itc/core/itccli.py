@@ -63,19 +63,20 @@ def __parse_options():
     args = docopt(__doc__)
     conf.config.options = args
     globals()['options'] = args
+    log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
     if args['--verbose']:
-        logging.basicConfig(level=logging.DEBUG)
+        logging.basicConfig(level=logging.ERROR, format=log_format)
     elif not args['--silent']:
         requests_log = logging.getLogger('requests')
         requests_log.setLevel(logging.WARNING)
         
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.INFO, format=log_format)
     else:
         requests_log = logging.getLogger('requests')
         requests_log.setLevel(logging.ERROR)
         
-        logging.basicConfig(level=logging.ERROR)
+        logging.basicConfig(level=logging.ERROR, format=log_format)
 
     return args
 

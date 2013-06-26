@@ -54,7 +54,7 @@ class ITCInappPurchase(object):
                         , 'x-original-filename' : os.path.basename(file_path)
                         , 'Content-Type': 'image/png'}
             logging.info('Uploading image ' + file_path)
-            r = requests.post(ITUNESCONNECT_URL + self._uploadScreenshotAction
+            r = self._parser.requests_session.post(ITUNESCONNECT_URL + self._uploadScreenshotAction
                                 , cookies=cookie_jar
                                 , headers=headers
                                 , data=EnhancedFile(file_path, 'rb'))
@@ -93,7 +93,7 @@ class ITCInappPurchase(object):
         langFormData[descriptionElementName] = langVal['description']
         langFormData['save'] = "true"
 
-        postFormResponse = requests.post(ITUNESCONNECT_URL + localizationSaveAction, data = langFormData, cookies=cookie_jar)
+        postFormResponse = self._parser.requests_session.post(ITUNESCONNECT_URL + localizationSaveAction, data = langFormData, cookies=cookie_jar)
 
         if postFormResponse.status_code != 200:
             raise 'Wrong response from iTunesConnect. Status code: ' + str(postFormResponse.status_code)
@@ -161,7 +161,7 @@ class ITCInappPurchase(object):
                 formData[dcn] = 'WONoSelectionString'
             formData['save'] = "true"
 
-            postFormResponse = requests.post(ITUNESCONNECT_URL + postAction, data = formData, cookies=cookie_jar)
+            postFormResponse = self._parser.requests_session.post(ITUNESCONNECT_URL + postAction, data = formData, cookies=cookie_jar)
 
             if postFormResponse.status_code != 200:
                 raise 'Wrong response from iTunesConnect. Status code: ' + str(postFormResponse.status_code)
@@ -215,7 +215,7 @@ class ITCInappPurchase(object):
             matches = re.findall('statusURL:\s\'([^\']+)\'', statusURLScript)
             self._statusURL = matches[0]
             self.__uploadScreenshot(inappDict['review screenshot'])
-            requests.get(ITUNESCONNECT_URL + self._statusURL, cookies=cookie_jar)
+            self._parser.requests_session.get(ITUNESCONNECT_URL + self._statusURL, cookies=cookie_jar)
 
             formData["uploadSessionID"] = self._uploadSessionId
             formData["uploadKey"] = self._uploadScreenshotKey
@@ -285,7 +285,7 @@ class ITCInappPurchase(object):
             matches = re.findall('statusURL:\s\'([^\']+)\'', statusURLScript)
             self._statusURL = matches[0]
             self.__uploadScreenshot(screenshot)
-            requests.get(ITUNESCONNECT_URL + self._statusURL, cookies=cookie_jar)
+            self._parser.requests_session.get(ITUNESCONNECT_URL + self._statusURL, cookies=cookie_jar)
 
             formData["uploadSessionID"] = self._uploadSessionId
             formData["uploadKey"] = self._uploadScreenshotKey

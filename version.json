@@ -1,0 +1,22 @@
+{
+    "application": {
+        "id": 585307074,
+        "version": "2.0",
+        "metadata": {
+            "general" :{
+                "whats new": {"file name format": "whats new - {language}.txt"}
+            },
+            "languages": {
+                "en": {
+                    "whats new": "test cli - en"
+                },
+                "pt": {
+                    "whats new": "test cli - pt"
+                },
+                "en-GB": {
+                    "whats new": "test cli - en-gb"
+                }
+            }
+        }
+    }
+}

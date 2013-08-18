@@ -15,7 +15,7 @@ class ITCApplicationParser(BaseParser):
 
     
     def parseAppVersionsPage(self, htmlTree):
-        AppVersions = namedtuple('AppVersions', ['manageInappsLink', 'customerReviewsLink', 'versions'])
+        AppVersions = namedtuple('AppVersions', ['manageInappsLink', 'customerReviewsLink', 'addVersionLink', 'versions'])
 
         # get 'manage in-app purchases' link
         manageInappsLink = htmlTree.xpath("//ul[@id='availableButtons']/li/a[.='Manage In-App Purchases']/@href")[0]
@@ -35,12 +35,15 @@ class ITCApplicationParser(BaseParser):
             return AppVersions(manageInappsLink=manageInappsLink, customerReviewsLink=customerReviewsLink, versions={})
 
         versions = {}
+        addVersionLink = None
 
         for versionDiv in versionDivs:
             version = {}            
             versionString = versionDiv.xpath(".//p/label[.='Version']/../span")
 
             if len(versionString) == 0: # Add version
+                addVersionLink = versionDiv.xpath(".//a[.='Add Version']/@href")[0]
+                logging.debug('Add version link: ' + addVersionLink)
                 continue
             
             versionString = versionString[0].text.strip()
@@ -54,7 +57,8 @@ class ITCApplicationParser(BaseParser):
 
             versions[versionString] = version
 
-        return AppVersions(manageInappsLink=manageInappsLink, customerReviewsLink=customerReviewsLink, versions=versions)
+        return AppVersions(manageInappsLink=manageInappsLink, customerReviewsLink=customerReviewsLink
+                            , addVersionLink=addVersionLink, versions=versions)
 
 
     def parseCreateOrEditPage(self, htmlTree, version, language=None):
@@ -189,6 +193,29 @@ class ITCApplicationParser(BaseParser):
                                , submitAction=submitAction)
         return metadata
 
+    def parseAddVersionPageMetadata(self, htmlTree):
+        AddVersionPageInfo = namedtuple('AddVersionPageInfo', ['formNames', 'submitAction', 'saveButton'])
+        formNames = {'languages': {}}
+
+        formNames['version'] = htmlTree.xpath("//div/label[.='Version Number']/..//input/@name")[0]
+        defaultLanguage = htmlTree.xpath("//div[@class='app-info-container app-landing app-version']//h2/strong/text()")[0]
+        formNames['languages'][defaultLanguage] = htmlTree.xpath("//div[@id='whatsNewinthisVersionUpdateContainerId']//textarea/@name")[0]
+        
+        otherLanguages = htmlTree.xpath("//span[@class='metadataField metadataFieldReadonly']/textarea/../..")
+        for langDiv in otherLanguages:
+            lang = langDiv.xpath(".//label/text()")[0]
+            taName = langDiv.xpath(".//span/textarea/@name")[0]
+            formNames['languages'][lang] = taName
+
+        submitAction = htmlTree.xpath('//form[@name="mainForm"]/@action')[0]
+        saveButton = htmlTree.xpath('//input[@class="saveChangesActionButton"]/@name')[0]
+
+        metadata = AddVersionPageInfo(formNames=formNames
+                                     , submitAction=submitAction
+                                     , saveButton=saveButton)
+
+        return metadata
+
     def getPromocodesLink(self, htmlTree):
         link = htmlTree.xpath("//a[.='Promo Codes']")
         if len(link) == 0:
@@ -250,7 +277,6 @@ class ITCApplicationParser(BaseParser):
         return metadata
 
     def parseReviews(self, pageText, minDate=None, maxDate=None):
-        Reviews = namedtuple('Reviews', ['reviews', 'nextPageLink', 'totalPages'])
         tree = self.parser.parse(pageText)
         reviewDivs = tree.xpath('//div[@class="reviews-container"]')
         
@@ -278,11 +304,5 @@ class ITCApplicationParser(BaseParser):
 
             review['text'] = getElement(reviewDiv.xpath('./p[@class="review-text"]'), 0).text.strip()
             reviews.append(review)
-
-        # nextPageLink = 
-
-        # metadata = Reviews(reviews=reviews
-        #                  , nextPageLink=nextPageLink
-        #                  , totalPages=totalPages)
 
         return reviews

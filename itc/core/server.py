@@ -71,7 +71,11 @@ class ITCServer(ITCImageUploader):
         form = forms[0]
         actionURL = form.attrib['action']
         payload = {'theAccountName': (self._info['username'] if login == None else login)
-                 , 'theAccountPW': self._info['password'] if password == None else password}
+                 , 'theAccountPW': (self._info['password'] if password == None else password)
+                 , '1.Continue.x': 60
+                 , '1.Continue.y': 27
+                 , 'theAuxValue': ''}
+
         mainPageTree = self._parser.parseTreeForURL(actionURL, method="POST", payload=payload)
 
         self.isLoggedIn = self.__checkLogin(mainPageTree=mainPageTree);

@@ -64,9 +64,9 @@ def __parse_options():
     conf.config.options = args
     globals()['options'] = args
     log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-
+    
     if args['--verbose']:
-        logging.basicConfig(level=logging.ERROR, format=log_format)
+        logging.basicConfig(level=logging.DEBUG, format=log_format)
     elif not args['--silent']:
         requests_log = logging.getLogger('requests')
         requests_log.setLevel(logging.WARNING)

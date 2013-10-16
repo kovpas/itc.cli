@@ -3,6 +3,7 @@
 Usage: 
     itc login [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc update -c FILE [-a APP_ID] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc version -c FILE [-a APP_ID] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc create -c FILE [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc generate [-a APP_ID] [-e APP_VER] [-i] [-c FILE] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc promo -a APP_ID [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE] <amount>
@@ -63,19 +64,20 @@ def __parse_options():
     args = docopt(__doc__)
     conf.config.options = args
     globals()['options'] = args
+    log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
     if args['--verbose']:
-        logging.basicConfig(level=logging.DEBUG)
+        logging.basicConfig(level=logging.DEBUG, format=log_format)
     elif not args['--silent']:
         requests_log = logging.getLogger('requests')
         requests_log.setLevel(logging.WARNING)
         
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.INFO, format=log_format)
     else:
         requests_log = logging.getLogger('requests')
         requests_log.setLevel(logging.ERROR)
         
-        logging.basicConfig(level=logging.ERROR)
+        logging.basicConfig(level=logging.ERROR, format=log_format)
 
     return args
 
@@ -222,83 +224,86 @@ def main():
         server.createNewApp(applicationDict, filename_format=filename_format)
     elif applicationId in server.applications:
         application = server.applications[applicationId]
+        if options['version']:
+            langActions['default'] = commonActions
+            application.addVersion(applicationDict['version'], langActions)
+        else:
+            for lang in langActions:
+                actions = langActions[lang]
+                application.editVersion(actions, lang=lang, filename_format=filename_format)
 
-        for lang in langActions:
-            actions = langActions[lang]
-            application.editVersion(actions, lang=lang, filename_format=filename_format)
+            appReviewInfo = applicationDict.get('app review information', None)
 
-        appReviewInfo = applicationDict.get('app review information', None)
+            if appReviewInfo != None:
+                application.editReviewInformation(appReviewInfo)
 
-        if appReviewInfo != None:
-            application.editReviewInformation(appReviewInfo)
+            for inappDict in applicationDict.get('inapps', {}):
+                isIterable = inappDict['id'].find('{index}') != -1
+                iteratorDict = inappDict.get('index iterator')
 
-        for inappDict in applicationDict.get('inapps', {}):
-            isIterable = inappDict['id'].find('{index}') != -1
-            iteratorDict = inappDict.get('index iterator')
+                if isIterable and (iteratorDict == None):
+                    logging.error('Inapp id contains {index} keyword, but no index_iterator object found. Skipping inapp: ' + inappDict['id'])
+                    continue
 
-            if isIterable and (iteratorDict == None):
-                logging.error('Inapp id contains {index} keyword, but no index_iterator object found. Skipping inapp: ' + inappDict['id'])
-                continue
+                langsDict = inappDict['languages']
+                genericLangsDict = inappDict['general']
 
-            langsDict = inappDict['languages']
-            genericLangsDict = inappDict['general']
+                for langId in langsDict:
+                    langsDict[langId] = dict_merge(genericLangsDict, langsDict[langId])
 
-            for langId in langsDict:
-                langsDict[langId] = dict_merge(genericLangsDict, langsDict[langId])
+                inappDict['languages'] = langsDict
+                del inappDict['general']
 
-            inappDict['languages'] = langsDict
-            del inappDict['general']
+                indexes = [-1]
+                if (isIterable):
+                    indexes = iteratorDict.get('indexes')
+                    if indexes == None:
+                        indexes = range(iteratorDict.get('from', 1), iteratorDict['to'] + 1)
 
-            indexes = [-1]
-            if (isIterable):
-                indexes = iteratorDict.get('indexes')
-                if indexes == None:
-                    indexes = range(iteratorDict.get('from', 1), iteratorDict['to'] + 1)
+                del inappDict['index iterator']
 
-            del inappDict['index iterator']
+                for key, value in inappDict.items():
+                    if (not key in ("index iterator", "general", "languages")) and isinstance(value, dict):
+                        flattenDictIndexes(value)
 
-            for key, value in inappDict.items():
-                if (not key in ("index iterator", "general", "languages")) and isinstance(value, dict):
-                    flattenDictIndexes(value)
+                for langKey, value in inappDict["languages"].items():
+                    for innerLangKey, langValue in inappDict["languages"][langKey].items():
+                        if isinstance(langValue, dict):
+                            flattenDictIndexes(langValue)
 
-            for langKey, value in inappDict["languages"].items():
-                for innerLangKey, langValue in inappDict["languages"][langKey].items():
-                    if isinstance(langValue, dict):
-                        flattenDictIndexes(langValue)
+                realindex = 0
+                for index in indexes:
+                    inappIndexDict = deepcopy(inappDict)
+                    if isIterable:
+                        for key in inappIndexDict:
+                            if key in ("index iterator", "general", "languages"):
+                                continue
 
-            realindex = 0
-            for index in indexes:
-                inappIndexDict = deepcopy(inappDict)
-                if isIterable:
-                    for key in inappIndexDict:
-                        if key in ("index iterator", "general", "languages"):
-                            continue
+                            if (isinstance(inappIndexDict[key], basestring)):
+                                inappIndexDict[key] = inappIndexDict[key].replace('{index}', str(index))
+                            elif (isinstance(inappIndexDict[key], list)):
+                                inappIndexDict[key] = inappIndexDict[key][realindex]
+                            elif (isinstance(inappIndexDict[key], dict)):
+                                inappIndexDict[key] = inappIndexDict[key][index]
 
-                        if (isinstance(inappIndexDict[key], basestring)):
-                            inappIndexDict[key] = inappIndexDict[key].replace('{index}', str(index))
-                        elif (isinstance(inappIndexDict[key], list)):
-                            inappIndexDict[key] = inappIndexDict[key][realindex]
-                        elif (isinstance(inappIndexDict[key], dict)):
-                            inappIndexDict[key] = inappIndexDict[key][index]
+                        langsDict = inappIndexDict['languages']
 
-                    langsDict = inappIndexDict['languages']
+                        for langId, langDict in langsDict.items():
+                            for langKey in langDict:
+                                if (isinstance(langDict[langKey], basestring)):
+                                    langDict[langKey] = langDict[langKey].replace('{index}', str(index))
+                                elif (isinstance(langDict[langKey], list)):
+                                    langDict[langKey] = langDict[langKey][realindex]
+                                elif (isinstance(langDict[langKey], dict)):
+                                    langDict[langKey] = langDict[langKey][index]
 
-                    for langId, langDict in langsDict.items():
-                        for langKey in langDict:
-                            if (isinstance(langDict[langKey], basestring)):
-                                langDict[langKey] = langDict[langKey].replace('{index}', str(index))
-                            elif (isinstance(langDict[langKey], list)):
-                                langDict[langKey] = langDict[langKey][realindex]
-                            elif (isinstance(langDict[langKey], dict)):
-                                langDict[langKey] = langDict[langKey][index]
+                    inapp = application.getInappById(inappIndexDict['id'])
+                    if inapp == None:
+                        application.createInapp(inappIndexDict)
+                    else:
+                        inapp.update(inappIndexDict)
 
-                inapp = application.getInappById(inappIndexDict['id'])
-                if inapp == None:
-                    application.createInapp(inappIndexDict)
-                else:
-                    inapp.update(inappIndexDict)
-
-                realindex += 1
+                    realindex += 1
     else:
         logging.error('No application with id ' + str(applicationId))
         return

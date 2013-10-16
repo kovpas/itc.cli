@@ -36,7 +36,7 @@ class ITCImageUploader(object):
         if statusURL:
             attempts = 3
             while attempts > 0 and result == None:
-                status = requests.get(ITUNESCONNECT_URL + statusURL
+                status = self._parser.requests_session.get(ITUNESCONNECT_URL + statusURL
                                       , cookies=cookie_jar)
                 statusJSON = None
                 try:
@@ -77,7 +77,7 @@ class ITCImageUploader(object):
                         , 'x-original-filename' : os.path.basename(file_path)
                         , 'Content-Type': 'image/png'}
             logging.info('Uploading image ' + file_path)
-            r = requests.post(ITUNESCONNECT_URL + uploadScreenshotAction
+            r = self._parser.requests_session.post(ITUNESCONNECT_URL + uploadScreenshotAction
                                 , cookies=cookie_jar
                                 , headers=headers
                                 , data=EnhancedFile(file_path, 'rb'))
@@ -96,7 +96,7 @@ class ITCImageUploader(object):
 
         deleteScreenshotAction = self._uploadSessionData[type]['deleteURL']
         if deleteScreenshotAction != None:
-            requests.get(ITUNESCONNECT_URL + deleteScreenshotAction + "?pictureId=" + screenshot_id
+            self._parser.requests_session.get(ITUNESCONNECT_URL + deleteScreenshotAction + "?pictureId=" + screenshot_id
                     , cookies=cookie_jar)
 
             # TODO: check status
@@ -109,7 +109,7 @@ class ITCImageUploader(object):
         sortScreenshotsAction = self._uploadSessionData[type]['sortURL']
 
         if sortScreenshotsAction != None:
-            requests.get(ITUNESCONNECT_URL + sortScreenshotsAction 
+            self._parser.requests_session.get(ITUNESCONNECT_URL + sortScreenshotsAction 
                                     + "?sortedIDs=" + (",".join(newScreenshotsIndexes))
                             , cookies=cookie_jar)
 

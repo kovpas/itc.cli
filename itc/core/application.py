@@ -32,6 +32,7 @@ class ITCApplication(ITCImageUploader):
 
         self._manageInappsLink = None
         self._customerReviewsLink = None
+        self._addVersionLink = None
         self._manageInappsTree = None
         self._createInappLink = None
         self._inappActionURLs = None
@@ -64,6 +65,7 @@ class ITCApplication(ITCImageUploader):
         # get 'manage in-app purchases' link
         self._manageInappsLink = versionsMetadata.manageInappsLink
         self._customerReviewsLink = versionsMetadata.customerReviewsLink
+        self._addVersionLink = versionsMetadata.addVersionLink
         self.versions = versionsMetadata.versions
 
 
@@ -288,7 +290,7 @@ class ITCApplication(ITCImageUploader):
         logging.debug(formData)
         # formData['uploadKey'] = self._uploadSessionData[DEVICE_TYPE.iPhone5]['key']
 
-        postFormResponse = requests.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies=cookie_jar)
+        postFormResponse = self._parser.requests_session.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies=cookie_jar)
 
         if postFormResponse.status_code != 200:
             raise 'Wrong response from iTunesConnect. Status code: ' + str(postFormResponse.status_code)
@@ -331,7 +333,7 @@ class ITCApplication(ITCImageUploader):
         formData[formNames['password']]      = appReviewInfo.get('password', metadata.formData['password'])
 
         logging.debug(formData)
-        postFormResponse = requests.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies=cookie_jar)
+        postFormResponse = self._parser.requests_session.post(ITUNESCONNECT_URL + submitAction, data = formData, cookies=cookie_jar)
 
         if postFormResponse.status_code != 200:
             raise 'Wrong response from iTunesConnect. Status code: ' + str(postFormResponse.status_code)
@@ -421,7 +423,7 @@ class ITCApplication(ITCImageUploader):
 
         logging.info('Searching for inapp with id ' + inappId)
 
-        searchResponse = requests.get(ITUNESCONNECT_URL + searchAction + "?query=" + inappId, cookies=cookie_jar)
+        searchResponse = self._parser.requests_session.get(ITUNESCONNECT_URL + searchAction + "?query=" + inappId, cookies=cookie_jar)
 
         if searchResponse.status_code != 200:
             raise 'Wrong response from iTunesConnect. Status code: ' + str(searchResponse.status_code)
@@ -480,6 +482,36 @@ class ITCApplication(ITCImageUploader):
 
         iap.create(inappDict['languages'], screenshot=inappDict.get('review screenshot'))
 
+####################### Add version ########################
+
+    def addVersion(self, version, langActions):
+        if len(self.versions) == 0:
+            self.getAppInfo()
+        if len(self.versions) == 0:
+            raise 'Can\'t get application versions'
+
+        if self._addVersionLink == None:
+            raise 'Can\'t find \'Add Version\' link.'
+
+        logging.info('Parsing \'Add Version\' page')
+        tree = self._parser.parseTreeForURL(self._addVersionLink)
+        metadata = self._parser.parseAddVersionPageMetadata(tree)
+        formData = {metadata.saveButton + '.x': 46, metadata.saveButton + '.y': 10}
+        formData[metadata.formNames['version']] = version
+        defaultWhatsNew = langActions.get('default', {}).get('whats new', '')
+        logging.debug('Default what\'s new: ' + defaultWhatsNew.__str__())
+        for lang, taName in metadata.formNames['languages'].items():
+            languageCode = languages.langCodeForLanguage(lang)
+            whatsNew = langActions.get(lang, {}).get('whats new', defaultWhatsNew)
+            
+            if (isinstance(whatsNew, dict)):
+                whatsNew = dataFromStringOrFile(whatsNew, languageCode)
+            formData[taName] = whatsNew
+        self._parser.requests_session.post(ITUNESCONNECT_URL + metadata.submitAction, data = formData, cookies=cookie_jar)
+
+        # TODO: Add error handling
+
+
 ################## Promo codes management ##################
 
     def getPromocodes(self, amount):
@@ -509,19 +541,19 @@ class ITCApplication(ITCImageUploader):
         metadata = self._parser.parsePromocodesPageMetadata(tree)
         formData = {metadata.continueButton + '.x': 46, metadata.continueButton + '.y': 10}
         formData[metadata.amountName] = amount
-        postFormResponse = requests.post(ITUNESCONNECT_URL + metadata.submitAction, data = formData, cookies=cookie_jar)
+        postFormResponse = self._parser.requests_session.post(ITUNESCONNECT_URL + metadata.submitAction, data = formData, cookies=cookie_jar)
 
         #accept license agreement
         logging.info('Accepting license agreement')
         metadata = self._parser.parsePromocodesLicenseAgreementPage(postFormResponse.text)
         formData = {metadata.continueButton + '.x': 46, metadata.continueButton + '.y': 10}
         formData[metadata.agreeTickName] = metadata.agreeTickName
-        postFormResponse = requests.post(ITUNESCONNECT_URL + metadata.submitAction, data = formData, cookies=cookie_jar)
+        postFormResponse = self._parser.requests_session.post(ITUNESCONNECT_URL + metadata.submitAction, data = formData, cookies=cookie_jar)
 
         #download promocodes
         logging.info('Downloading promocodes')
         downloadCodesLink = self._parser.getDownloadCodesLink(postFormResponse.text)
-        codes = requests.get(ITUNESCONNECT_URL + downloadCodesLink
+        codes = self._parser.requests_session.get(ITUNESCONNECT_URL + downloadCodesLink
                                       , cookies=cookie_jar)
 
         return codes.text
@@ -581,7 +613,7 @@ class ITCApplication(ITCImageUploader):
         for countryName, countryId in metadata.countries.items():
             logging.debug('Fetching reviews for ' + countryName)
             formData = {metadata.countriesSelectName: countryId}
-            postFormResponse = requests.post(ITUNESCONNECT_URL + metadata.countryFormSubmitAction, data = formData, cookies=cookie_jar)
+            postFormResponse = self._parser.requests_session.post(ITUNESCONNECT_URL + metadata.countryFormSubmitAction, data = formData, cookies=cookie_jar)
             reviewsForCountry = self._parser.parseReviews(postFormResponse.content, minDate=minDate, maxDate=maxDate)
             if reviewsForCountry != None and len(reviewsForCountry) != 0:
                 reviews[countryName] = reviewsForCountry
@@ -595,7 +627,7 @@ class ITCApplication(ITCImageUploader):
             print >> sys.stdout, "\rDone\n",
             sys.stdout.flush()
 
-        logging.debug("Got %d reviews." % totalReviews)
+        logging.info("Got %d reviews." % totalReviews)
 
         if outputFileName:
             with open(outputFileName, 'wb') as fp:

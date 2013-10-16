@@ -1,6 +1,7 @@
 import os
 import json 
 from copy import deepcopy 
+from itc.conf import ALIASES
 
 def getElement(list, index, outOfBoundsValue=""):
     """

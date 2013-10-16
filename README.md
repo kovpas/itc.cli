@@ -16,6 +16,7 @@ Have you ever had to create 1000 inapp purchases by template? Or may be to uploa
 &bull; [iTC login](#itc-login)  
 &bull; [Update application metadata](#update-application-metadata)  
 &bull; [Create new application](#create-new-application)  
+&bull; [Create new application version](#create-new-application-version)  
 &bull; [Promo codes](#promo-codes)  
 &bull; [Reviews](#reviews)  
 &bull; [Logging](#logging)  
@@ -373,6 +374,40 @@ The following fields support both string and [````file name format````](#metadat
 * ````eula text````  
 * ````description````  
 * ````keywords````  
+
+Create new application version
+=======
+
+In order to create a new application version, you should use ````version```` command and provide a configuration file:  
+````./itc/bin/itc version -c version.json````
+
+This file should contain ````application```` dictionary with the following fields: ````id```` (optional, could be passed with ````-a```` command line key), ````version```` and ````metadata````:
+
+````JSON
+{
+    "application": {
+        "id": 585307074,
+        "version": "2.0",
+        "metadata": {
+            "general" :{
+                "whats new": {"file name format": "whats new - {language}.txt"}
+            },
+            "languages": {
+                "en": {
+                    "whats new": "test cli - en"
+                },
+                "pt": {
+                    "whats new": "test cli - pt"
+                },
+                "en-GB": {
+                    "whats new": "test cli - en-gb"
+                }
+            }
+        }
+    }
+}
+````
+
 
 Automagically generate config file
 =======

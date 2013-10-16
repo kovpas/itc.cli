@@ -73,19 +73,25 @@ class ITCServerParser(BaseParser):
         if not self._getApplicationListURL:
             self.__getInternalURLs()
 
-        appsTree = self.parseTreeForURL(self._getApplicationListURL)
-        applicationRows = appsTree.xpath("//div[@id='software-result-list'] \
-                            /div[@class='resultList']/table/tbody/tr[not(contains(@class, 'column-headers'))]")
-
         result = []
-        for applicationRow in applicationRows:
-            tds = applicationRow.xpath("td")
-            nameLink = tds[0].xpath(".//a")
-            name = nameLink[0].text.strip()
-            link = nameLink[0].attrib["href"]
-            applicationId = int(tds[4].xpath(".//p")[0].text.strip())
+        nextLink = self._getApplicationListURL;
+        while nextLink!=None:
+            appsTree = self.parseTreeForURL(nextLink)
+            applicationRows = appsTree.xpath("//div[@id='software-result-list'] \
+                            /div[@class='resultList']/table/tbody/tr[not(contains(@class, 'column-headers'))]")
+            for applicationRow in applicationRows:
+                tds = applicationRow.xpath("td")
+                nameLink = tds[0].xpath(".//a")
+                name = nameLink[0].text.strip()
+                link = nameLink[0].attrib["href"]
+                applicationId = int(tds[4].xpath(".//p")[0].text.strip())
+                result.append(ApplicationData(name=name, link=link, applicationId=applicationId))
 
-            result.append(ApplicationData(name=name, link=link, applicationId=applicationId))
+            nextLinkDiv = appsTree.xpath("//td[@class='next']")
+            if len(nextLinkDiv) > 0:
+                nextLink = nextLinkDiv[0].xpath(".//a[starts-with(., ' Next')]/@href")[0]
+            else:
+                nextLink = None
 
         return result
 

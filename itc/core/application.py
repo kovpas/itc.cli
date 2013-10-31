@@ -91,6 +91,7 @@ class ITCApplication(ITCImageUploader):
             resultForLang = {}
 
             resultForLang["name"]               = formValuesForLang['appNameValue']
+            resultForLang["description"]        = formValuesForLang['descriptionValue']
             resultForLang["whats new"]          = formValuesForLang.get('whatsNewValue')
             resultForLang["keywords"]           = formValuesForLang['keywordsValue']
             resultForLang["support url"]        = formValuesForLang['supportURLValue']

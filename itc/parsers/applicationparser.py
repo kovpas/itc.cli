@@ -158,7 +158,7 @@ class ITCApplicationParser(BaseParser):
         return metadata
 
     def parseAppReviewInfoForm(self, tree):
-        logging.info('Updating application review informtaion')
+        logging.info('Updating application review information')
 
         AppReviewInfo = namedtuple('AppReviewInfo', ['formData', 'formNames', 'submitAction'])
 

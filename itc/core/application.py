@@ -502,6 +502,7 @@ class ITCApplication(ITCImageUploader):
         defaultWhatsNew = langActions.get('default', {}).get('whats new', '')
         logging.debug('Default what\'s new: ' + defaultWhatsNew.__str__())
         for lang, taName in metadata.formNames['languages'].items():
+            print lang
             languageCode = languages.langCodeForLanguage(lang)
             whatsNew = langActions.get(lang, {}).get('whats new', defaultWhatsNew)
             

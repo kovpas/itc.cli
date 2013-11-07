@@ -90,11 +90,13 @@ class ITCServer(ITCImageUploader):
             raise Exception('Get applications list: not logged in')
         
         applicationData = self._parser.getApplicationDataById(applicationId)
-        name = applicationData.name
-        link = applicationData.link
-        applicationId = applicationData.applicationId
+        application = None
+        if (applicationData != None):
+            name = applicationData.name
+            link = applicationData.link
+            applicationId = applicationData.applicationId
 
-        application = ITCApplication(name=name, applicationId=applicationId, link=link)
+            application = ITCApplication(name=name, applicationId=applicationId, link=link)
         
         return application
 

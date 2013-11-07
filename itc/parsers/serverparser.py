@@ -72,8 +72,16 @@ class ITCServerParser(BaseParser):
 
         result = None
         nextLink = self._getApplicationListURL;
+        while (nextLink != None):
+	    appsTree = self.parseTreeForURL(nextLink)
+            nextLinkDiv = appsTree.xpath("//td[@class='previous']")
+            if len(nextLinkDiv) > 0:
+                nextLink = nextLinkDiv[0].xpath(".//a[contains(., ' Previous')]/@href")[0]
+            else:
+                nextLink = None
 
-        while (nextLink != None) || (result == None):
+        nextLink = self._getApplicationListURL;
+        while (nextLink != None) and (result == None):
             appsTree = self.parseTreeForURL(nextLink)
             applicationRows = appsTree.xpath("//div[@id='software-result-list'] \
                             /div[@class='resultList']/table/tbody/tr[not(contains(@class, 'column-headers'))]")
@@ -85,6 +93,7 @@ class ITCServerParser(BaseParser):
                     name = nameLink[0].text.strip()
                     link = nameLink[0].attrib["href"]
                     result = ApplicationData(name=name, link=link, applicationId=applicationId)
+                    break;
 
             nextLinkDiv = appsTree.xpath("//td[@class='next']")
             if len(nextLinkDiv) > 0:

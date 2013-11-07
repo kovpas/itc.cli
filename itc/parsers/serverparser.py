@@ -73,7 +73,7 @@ class ITCServerParser(BaseParser):
         result = None
         nextLink = self._getApplicationListURL;
         while (nextLink != None):
-	    appsTree = self.parseTreeForURL(nextLink)
+            appsTree = self.parseTreeForURL(nextLink)
             nextLinkDiv = appsTree.xpath("//td[@class='previous']")
             if len(nextLinkDiv) > 0:
                 nextLink = nextLinkDiv[0].xpath(".//a[contains(., ' Previous')]/@href")[0]

@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name = "itc.cli",
-      version = "0.4.2",
+      version = "0.4.3",
       author = 'Pavel Mazurin',
       author_email = 'me@kovpas.ru',
       description = 'iTunesConnect command line interface.',

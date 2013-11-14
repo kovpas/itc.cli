@@ -166,7 +166,8 @@ def main():
             applications = server.applications
 
         for applicationId, application in applications.items():
-            application.generateConfig(options['--application-version'], generateInapps = options['--generate-config-inapp'])
+            updatedApplication = server.getApplicationById(applicationId)
+            updatedApplication.generateConfig(options['--application-version'], generateInapps = options['--generate-config-inapp'])
 
         return
 
@@ -174,7 +175,7 @@ def main():
         if not options['--application-id'] in server.applications: 
             logging.error("Provide correct application id (--application-id or -a option)")
         else:
-            application = server.applications[options['--application-id']]
+            application = server.getApplicationById(options['--application-id'])
             promocodes = application.getPromocodes(options['<amount>'])
             if options['--output-file']:
                 with open(options['--output-file'], 'a') as outFile:
@@ -188,7 +189,7 @@ def main():
         if not options['--application-id'] in server.applications: 
             logging.error("Provide correct application id (--application-id or -a option)")
         else:
-            application = server.applications[options['--application-id']]
+            application = server.getApplicationById(options['--application-id'])
             application.generateReviews(options['--latest-version'], options['--date-range'], options['--output-file'])
 
         return
@@ -223,7 +224,7 @@ def main():
     if options['create']:
         server.createNewApp(applicationDict, filename_format=filename_format)
     elif applicationId in server.applications:
-        application = server.applications[applicationId]
+        application = server.getApplicationById(applicationId)
         if options['version']:
             langActions['default'] = commonActions
             application.addVersion(applicationDict['version'], langActions)

@@ -32,6 +32,7 @@ class ITCApplication(ITCImageUploader):
 
         self._manageInappsLink = None
         self._customerReviewsLink = None
+        self._addVersionLink = None
         self._manageInappsTree = None
         self._createInappLink = None
         self._inappActionURLs = None
@@ -64,6 +65,7 @@ class ITCApplication(ITCImageUploader):
         # get 'manage in-app purchases' link
         self._manageInappsLink = versionsMetadata.manageInappsLink
         self._customerReviewsLink = versionsMetadata.customerReviewsLink
+        self._addVersionLink = versionsMetadata.addVersionLink
         self.versions = versionsMetadata.versions
 
 
@@ -89,6 +91,7 @@ class ITCApplication(ITCImageUploader):
             resultForLang = {}
 
             resultForLang["name"]               = formValuesForLang['appNameValue']
+            resultForLang["description"]        = formValuesForLang['descriptionValue']
             resultForLang["whats new"]          = formValuesForLang.get('whatsNewValue')
             resultForLang["keywords"]           = formValuesForLang['keywordsValue']
             resultForLang["support url"]        = formValuesForLang['supportURLValue']
@@ -160,10 +163,10 @@ class ITCApplication(ITCImageUploader):
         formData["save"] = "true"
 
         formData[formNames['appNameName']]      = dataDict.get('name', metadata.formData[languageId]['appNameValue'])
-        formData[formNames['descriptionName']]  = self.dataFromStringOrFile(dataDict.get('description', metadata.formData[languageId]['descriptionValue']), languageCode)
+        formData[formNames['descriptionName']]  = dataFromStringOrFile(dataDict.get('description', metadata.formData[languageId]['descriptionValue']), languageCode)
         if 'whatsNewName' in formNames:
-            formData[formNames['whatsNewName']] = self.dataFromStringOrFile(dataDict.get('whats new', metadata.formData[languageId]['whatsNewValue']), languageCode)
-        formData[formNames['keywordsName']]     = self.dataFromStringOrFile(dataDict.get('keywords', metadata.formData[languageId]['keywordsValue']), languageCode)
+            formData[formNames['whatsNewName']] = dataFromStringOrFile(dataDict.get('whats new', metadata.formData[languageId]['whatsNewValue']), languageCode)
+        formData[formNames['keywordsName']]     = dataFromStringOrFile(dataDict.get('keywords', metadata.formData[languageId]['keywordsValue']), languageCode)
         formData[formNames['supportURLName']]   = dataDict.get('support url', metadata.formData[languageId]['supportURLValue'])
         formData[formNames['marketingURLName']] = dataDict.get('marketing url', metadata.formData[languageId]['marketingURLValue'])
         formData[formNames['pPolicyURLName']]   = dataDict.get('privacy policy url', metadata.formData[languageId]['pPolicyURLValue'])
@@ -326,7 +329,7 @@ class ITCApplication(ITCImageUploader):
         formData[formNames['last name']]     = appReviewInfo.get('last name', metadata.formData['last name'])
         formData[formNames['email address']] = appReviewInfo.get('email address', metadata.formData['email address'])
         formData[formNames['phone number']]  = appReviewInfo.get('phone number', metadata.formData['phone number'])
-        formData[formNames['review notes']]  = self.__dataFromStringOrFile(appReviewInfo.get('review notes', metadata.formData['review notes']))
+        formData[formNames['review notes']]  = dataFromStringOrFile(appReviewInfo.get('review notes', metadata.formData['review notes']))
         formData[formNames['username']]      = appReviewInfo.get('username', metadata.formData['username'])
         formData[formNames['password']]      = appReviewInfo.get('password', metadata.formData['password'])
 
@@ -479,6 +482,36 @@ class ITCApplication(ITCImageUploader):
         iap.reviewNotes = inappDict['review notes']
 
         iap.create(inappDict['languages'], screenshot=inappDict.get('review screenshot'))
+
+####################### Add version ########################
+
+    def addVersion(self, version, langActions):
+        if len(self.versions) == 0:
+            self.getAppInfo()
+        if len(self.versions) == 0:
+            raise 'Can\'t get application versions'
+
+        if self._addVersionLink == None:
+            raise 'Can\'t find \'Add Version\' link.'
+
+        logging.info('Parsing \'Add Version\' page')
+        tree = self._parser.parseTreeForURL(self._addVersionLink)
+        metadata = self._parser.parseAddVersionPageMetadata(tree)
+        formData = {metadata.saveButton + '.x': 46, metadata.saveButton + '.y': 10}
+        formData[metadata.formNames['version']] = version
+        defaultWhatsNew = langActions.get('default', {}).get('whats new', '')
+        logging.debug('Default what\'s new: ' + defaultWhatsNew.__str__())
+        for lang, taName in metadata.formNames['languages'].items():
+            languageCode = languages.langCodeForLanguage(lang)
+            whatsNew = langActions.get(lang, {}).get('whats new', defaultWhatsNew)
+            
+            if (isinstance(whatsNew, dict)):
+                whatsNew = dataFromStringOrFile(whatsNew, languageCode)
+            formData[taName] = whatsNew
+        self._parser.requests_session.post(ITUNESCONNECT_URL + metadata.submitAction, data = formData, cookies=cookie_jar)
+
+        # TODO: Add error handling
+
 
 ################## Promo codes management ##################
 

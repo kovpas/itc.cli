@@ -89,6 +89,20 @@ class ITCServer(ITCImageUploader):
         else:
             raise Exception('Cannot continue: login failed. Please check username/password')
 
+    def getApplicationById(self, applicationId):
+        if not self.isLoggedIn:
+            raise Exception('Get applications list: not logged in')
+        
+        applicationData = self._parser.getApplicationDataById(applicationId)
+        application = None
+        if (applicationData != None):
+            name = applicationData.name
+            link = applicationData.link
+            applicationId = applicationData.applicationId
+
+            application = ITCApplication(name=name, applicationId=applicationId, link=link)
+        
+        return application
 
     def fetchApplicationsList(self):
         if not self.isLoggedIn:

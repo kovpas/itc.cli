@@ -261,7 +261,7 @@ def main():
                     if indexes == None:
                         indexes = range(iteratorDict.get('from', 1), iteratorDict['to'] + 1)
 
-                if (iteratorDict != None)
+                if iteratorDict != None:
 		    del inappDict['index iterator']
 
                 for key, value in inappDict.items():

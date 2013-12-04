@@ -68,6 +68,7 @@ class ITCImageUploader(object):
         if self._uploadSessionId == None or len(self._uploadSessionData) == 0:
             raise 'Trying to upload screenshot without proper session keys'
 
+        print self._uploadSessionData
         uploadScreenshotAction = self._uploadSessionData[upload_type]['action']
         uploadScreenshotKey = self._uploadSessionData[upload_type]['key']
 

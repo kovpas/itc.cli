@@ -46,6 +46,7 @@ Options:
 
 import os
 import logging
+import colorer
 import platform
 import sys
 import json
@@ -116,7 +117,7 @@ def main():
         os.mkdir(temp_dir);
 
     args = __parse_options()
-    
+
     logging.debug('Python %s' % sys.version)
     logging.debug('Running on %s' % platform.platform())
     logging.debug('Temp path = %s' % temp_dir)
@@ -309,3 +310,4 @@ def main():
     else:
         logging.error('No application with id ' + str(applicationId))
         return
+

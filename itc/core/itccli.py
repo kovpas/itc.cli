@@ -46,6 +46,7 @@ Options:
 
 import os
 import logging
+import colorer
 import platform
 import sys
 import json
@@ -116,7 +117,7 @@ def main():
         os.mkdir(temp_dir);
 
     args = __parse_options()
-    
+
     logging.debug('Python %s' % sys.version)
     logging.debug('Running on %s' % platform.platform())
     logging.debug('Temp path = %s' % temp_dir)
@@ -261,7 +262,8 @@ def main():
                     if indexes == None:
                         indexes = range(iteratorDict.get('from', 1), iteratorDict['to'] + 1)
 
-                del inappDict['index iterator']
+                if iteratorDict != None:
+		    del inappDict['index iterator']
 
                 for key, value in inappDict.items():
                     if (not key in ("index iterator", "general", "languages")) and isinstance(value, dict):
@@ -308,3 +310,4 @@ def main():
     else:
         logging.error('No application with id ' + str(applicationId))
         return
+

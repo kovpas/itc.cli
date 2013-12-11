@@ -84,7 +84,7 @@ class ITCServer(ITCImageUploader):
 
         if self.isLoggedIn:
             logging.info("Login: logged in. Session cookies are saved to " + cookie_file)
-            logging.debug(cookie_jar)
+            # logging.debug(cookie_jar)
             cookie_jar.save(cookie_file, ignore_discard=True)
         else:
             raise Exception('Cannot continue: login failed. Please check username/password')

@@ -5,6 +5,7 @@ import re
 import json
 import logging
 import sys
+import codecs
 from datetime import datetime, timedelta
 
 import requests
@@ -609,7 +610,7 @@ class ITCApplication(ITCImageUploader):
         reviews = {}
         logging.info('Fetching reviews for %d countries. Please wait...' % len(metadata.countries))
         percentDone = 0
-        percentStep = 100 / len(metadata.countries)
+        percentStep = 100.0 / len(metadata.countries)
         totalReviews = 0
         for countryName, countryId in metadata.countries.items():
             logging.debug('Fetching reviews for ' + countryName)
@@ -631,7 +632,7 @@ class ITCApplication(ITCImageUploader):
         logging.info("Got %d reviews." % totalReviews)
 
         if outputFileName:
-            with open(outputFileName, 'wb') as fp:
-                json.dump(reviews, fp, sort_keys=False, indent=4, separators=(',', ': '))
+            with codecs.open(outputFileName, 'w', 'utf-8') as fp:
+                json.dump(reviews, fp, sort_keys=False, indent=4, separators=(',', ': '), ensure_ascii=False)
         else:
-            print reviews
+            print str(reviews).decode('unicode-escape')

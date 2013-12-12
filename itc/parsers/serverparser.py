@@ -16,8 +16,8 @@ class ITCServerParser(BaseParser):
 
 
     def isLoggedIn(self, htmlTree):
-        usernameInput = htmlTree.xpath("//input[@name='theAccountName']")
-        passwordInput = htmlTree.xpath("//input[@name='theAccountPW']")
+        usernameInput = htmlTree.xpath("//input[@id='accountname']")
+        passwordInput = htmlTree.xpath("//input[@id='accountpassword']")
 
         if not ((len(usernameInput) == 1) and (len(passwordInput) == 1)):
             try:

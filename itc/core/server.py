@@ -71,7 +71,11 @@ class ITCServer(ITCImageUploader):
         form = forms[0]
         actionURL = form.attrib['action']
         payload = {'theAccountName': (self._info['username'] if login == None else login)
-                 , 'theAccountPW': self._info['password'] if password == None else password}
+                 , 'theAccountPW': (self._info['password'] if password == None else password)
+                 , '1.Continue.x': 60
+                 , '1.Continue.y': 27
+                 , 'theAuxValue': ''}
+
         mainPageTree = self._parser.parseTreeForURL(actionURL, method="POST", payload=payload)
 
         self.isLoggedIn = self.__checkLogin(mainPageTree=mainPageTree);
@@ -80,7 +84,7 @@ class ITCServer(ITCImageUploader):
 
         if self.isLoggedIn:
             logging.info("Login: logged in. Session cookies are saved to " + cookie_file)
-            logging.debug(cookie_jar)
+            # logging.debug(cookie_jar)
             cookie_jar.save(cookie_file, ignore_discard=True)
         else:
             raise Exception('Cannot continue: login failed. Please check username/password')

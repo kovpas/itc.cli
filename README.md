@@ -27,6 +27,11 @@ Installation
 
 ### Automatic
 
+* Install [pip](http://www.pip-installer.org/en/latest/installing.html)
+* ````[sudo] pip install [upgrade] itc.cli```` (use upgrade in case if you already have itc linstalled)
+
+### Semi-automatic
+
 * Install [setuptools](https://pypi.python.org/pypi/setuptools)
 * Download sources somewhere on your computer
 * ````sudo python setup.py install````

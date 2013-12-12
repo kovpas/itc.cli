@@ -21,6 +21,7 @@ Commands:
   reviews                     Get reviews for a specified application.
 
 Options:
+  --version                   Show version.
   -h --help                   Print help (this message) and exit.
   -v --verbose                Verbose mode. Enables debug print to console.
   -vv                         Enables HTTP response print to a console.
@@ -54,6 +55,7 @@ import getpass
 from copy import deepcopy 
 
 from itc.core.server import ITCServer
+from itc.core import __version__
 from itc.util import *
 from itc.conf import *
 from docopt import docopt
@@ -62,7 +64,7 @@ options = None
 config = {}
 
 def __parse_options():
-    args = docopt(__doc__)
+    args = docopt(__doc__, version=__version__)
     conf.config.options = args
     globals()['options'] = args
     log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

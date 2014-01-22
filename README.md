@@ -28,7 +28,7 @@ Installation
 ### Automatic
 
 * Install [pip](http://www.pip-installer.org/en/latest/installing.html)
-* ````[sudo] pip install [upgrade] itc.cli```` (use upgrade in case if you already have itc linstalled)
+* ````[sudo] pip install [--upgrade] itc.cli```` (use upgrade in case if you already have itc linstalled)
 
 ### Semi-automatic
 

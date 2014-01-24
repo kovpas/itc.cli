@@ -8,6 +8,7 @@ from datetime import datetime
 from itc.parsers.baseparser import BaseParser
 from itc.util import getElement
 from itc.util import languages
+from itc.util import statuses
 
 class ITCApplicationParser(BaseParser):
     def __init__(self):
@@ -47,9 +48,10 @@ class ITCApplicationParser(BaseParser):
                 continue
             
             versionString = versionString[0].text.strip()
+            statusString = ("".join([str(x) for x in versionDiv.xpath(".//span/img[starts-with(@src, '/itc/images/status-')]/../text()")])).strip()
+
             version['detailsLink'] = versionDiv.xpath(".//a[.='View Details']/@href")[0]
-            version['statusString'] = ("".join([str(x) for x in versionDiv.xpath(".//span/img[starts-with(@src, '/itc/images/status-')]/../text()")])).strip()
-            version['editable'] = (version['statusString'] != 'Ready for Sale')
+            version['status'] = statuses.statusByStatusString(statusString)
             version['versionString'] = versionString
 
             logging.info("Version found: " + versionString)

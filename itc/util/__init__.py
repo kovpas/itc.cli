@@ -2,6 +2,7 @@ import os
 import json 
 from copy import deepcopy 
 from itc.conf import ALIASES
+from itc.util.statuses import APP_STATUS
 
 def getElement(list, index, outOfBoundsValue=""):
     """

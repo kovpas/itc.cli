@@ -13,6 +13,7 @@ import requests
 from itc.core.inapp import ITCInappPurchase
 from itc.core.imageuploader import ITCImageUploader
 from itc.parsers.applicationparser import ITCApplicationParser
+from itc.util.statuses import APP_STATUS
 from itc.util import languages
 from itc.util import dataFromStringOrFile
 from itc.util import EnhancedFile
@@ -112,7 +113,7 @@ class ITCApplication(ITCImageUploader):
         if len(self.versions) == 0:
             raise 'Can\'t get application versions'
         if versionString == None: # Suppose there's one or less editable versions
-            versionString = next((versionString for versionString, version in self.versions.items() if version['editable']), None)
+            versionString = next((versionString for versionString, version in self.versions.items() if version['status']['editable']), None)
         if versionString == None: # No versions to edit. Generate config from the first one
             versionString = self.versions.keys()[0]
         
@@ -143,12 +144,12 @@ class ITCApplication(ITCImageUploader):
         if len(self.versions) == 0:
             raise 'Can\'t get application versions'
         if versionString == None: # Suppose there's one or less editable versions
-            versionString = next((versionString for versionString, version in self.versions.items() if version['editable']), None)
+            versionString = next((versionString for versionString, version in self.versions.items() if version['status']['editable']), None)
         if versionString == None: # Suppose there's one or less editable versions
             raise 'No editable version found'
             
         version = self.versions[versionString]
-        if not version['editable']:
+        if not version['status']['editable']:
             raise 'Version ' + versionString + ' is not editable'
 
         languageId = languages.appleLangIdForLanguage(lang)
@@ -311,12 +312,12 @@ class ITCApplication(ITCImageUploader):
         if len(self.versions) == 0:
             raise 'Can\'t get application versions'
 
-        versionString = next((versionString for versionString, version in self.versions.items() if version['editable']), None)
+        versionString = next((versionString for versionString, version in self.versions.items() if version['status']['editable']), None)
         if versionString == None: # Suppose there's one or less editable versions
             raise 'No editable version found'
             
         version = self.versions[versionString]
-        if not version['editable']:
+        if not version['status']['editable']:
             raise 'Version ' + versionString + ' is not editable'
 
         metadata = self.__parseAppReviewInformation(version)
@@ -523,12 +524,12 @@ class ITCApplication(ITCImageUploader):
             raise 'Can\'t get application versions'
 
         # We need non-editable version to get promocodes from
-        versionString = next((versionString for versionString, version in self.versions.items() if version['statusString'] == "Ready for Sale"), None)
+        versionString = next((versionString for versionString, version in self.versions.items() if version['status']['id'] == APP_STATUS.READY_FOR_SALE), None)
         if versionString == None:
             raise 'No "Ready for Sale" versions found'
             
         version = self.versions[versionString]
-        if version['editable']:
+        if version['status']['editable']:
             raise 'Version ' + versionString + ' is editable.'
 
         #get promocodes link

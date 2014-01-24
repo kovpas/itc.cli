@@ -1,1 +1,2 @@
 include itc/util/languages.json
+include itc/util/statuses.json

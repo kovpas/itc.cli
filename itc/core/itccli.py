@@ -2,48 +2,64 @@
 
 Usage: 
     itc login [-n] [-k | -w] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
-    itc update -c FILE [-a APP_ID] [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
-    itc version -c FILE [-a APP_ID] [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc create -c FILE [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc version -c FILE [-a APP_ID] [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc update -c FILE [-a APP_ID] [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc binary (upload [-r] | verify) -a APP_ID -b BINARY_PATH [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc generate [-a APP_ID] [-e APP_VER] [-i] [-c FILE] [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc promo -a APP_ID [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE] <amount>
     itc reviews -a APP_ID [-d DATE] [-l] [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE]
     itc (-h | --help)
 
 Commands:
-  login                       Logs in with specified credentials.
-  update                      Update specified app with information provided in a config file.
-  create                      Creates new app using information provided in a config file.
-  generate                    Generate configuration file for a specified application id and version.
-                                If no --application-id provided, configuration files for all 
-                                applications will be created.
-  promo                       Download specified <amount> of promocodes.
-  reviews                     Get reviews for a specified application.
+  login                         Logs in with specified credentials.
+  create                        Creates new app using information provided in a config file.
+  version                       Creates new version of an existing app with information provided in a config file.
+  update                        Update specified app with information provided in a config file.
+  binary upload (OS X only)     Upload distribution binary to iTunesConnect.
+  binary verify (OS X only)     Verify distribution binary with iTunesConnect.
+  generate                      Generate configuration file for a specified application id and version.
+                                  If no --application-id provided, configuration file for every 
+                                  application found will be created.
+  promo                         Download specified <amount> of promocodes.
+  reviews                       Get reviews for a specified application.
+
+Logging options:
+  -v, --verbose                 Verbose mode. Enables debug print to console.
+  -vv                           Enables HTTP response print to a console.
+  -f                            Nicely format printed html response.
+  -s, --silent                  Silent mode. Only error messages are printed.
+
+Authentication options:
+  -u, --username USERNAME       iTunesConnect username.
+  -p, --password PASSWORD       iTunesConnect password.
+  -n, --no-cookies              Remove saved authentication cookies and authenticate again.
+  -k, --store-password          Store password in a system's secure storage. 
+                                  Removes authentication cookies first, so password has to be entered manually.
+                                  If password already exists, it will be replaced with a new one in case of successful login.
+  -w, --delete-password         Remove stored password system's secure storage.
+  -z                            Automatically click 'Continue' button if appears after login.
+                                  This button may appear in case if your account is to expire soon.
 
 Options:
-  --version                   Show version.
-  -h --help                   Print help (this message) and exit.
-  -v --verbose                Verbose mode. Enables debug print to console.
-  -vv                         Enables HTTP response print to a console.
-  -f                          Nicely format printed html response.
-  -s --silent                 Silent mode. Only error messages are printed.
-  -u --username USERNAME      iTunesConnect username.
-  -p --password PASSWORD      iTunesConnect password.
-  -e --application-version APP_VER  
-                              Application version to generate config.
-                                If not provided, config will be generated for latest version.
-  -i --generate-config-inapp  Generate config for inapps as well.
-  -c --config-file FILE       Configuration file. For more details on format see https://github.com/kovpas/itc.cli.
-  -a --application-id APP_ID  Application id to process. This property has more priority than 'application id'
-                                in configuration file.
-  -n --no-cookies             Remove saved authentication cookies and authenticate again.
-  -k --store-password         Store password in a system's secure storage. Removes authentication cookies first, so password has to be entered manually.
-  -w --delete-password        Remove stored password system's secure storage.
-  -z                          Automatically click 'Continue' button if appears after login.
-  -o --output-file FILE       Name of file to save promocodes or reviews to.
-  -d --date-range DATERANGE   Get reviews specified with this date range. Format [date][-][date].
-                                For more information, please, refer to https://github.com/kovpas/itc.cli.
-  -l --latest-version         Get reviews for current version only.
+  --version                     Show version.
+  -h, --help                    Print help (this message) and exit.
+  -e, --application-version APP_VER  
+                                Application version to generate config.
+                                  If not provided, config will be generated for latest version.
+  -i, --generate-config-inapp   Generate config for inapps as well.
+  -c, --config-file FILE        Configuration file. For more details on format see https://github.com/kovpas/itc.cli.
+  -a, --application-id APP_ID   Application id to process. This property has more priority than 'application id'
+                                  in configuration file.
+  -o, --output-file FILE        Name of file to save promocodes or reviews to.
+  -d, --date-range DATERANGE    Get reviews specified with this date range. Format [date][-][date].
+                                  For more information, please, refer to https://github.com/kovpas/itc.cli.
+  -l, --latest-version          Get reviews for current version only.
+  -b, --binary-path BINARY_PATH
+                                Path to an ipa binary.
+  -r, --reject-previous-upload  Rejects binary if possible. Because it's potentially could cause problems,
+                                  rejection when app is 'In Review' has to be done manually from iTunesConnect
+
 
 """
 
@@ -130,7 +146,8 @@ def main():
 
     logging.debug('args %s' % args)
 
-    if options['--no-cookies'] or options['--store-password']:
+    if (options['--no-cookies'] or options['--store-password'] or options['login']
+        or (options['binary'] and not options['--password'])):
         logging.debug('Deleting cookie file: ' + cookie_file)
         if os.path.exists(cookie_file):
             os.remove(cookie_file)
@@ -156,20 +173,19 @@ def main():
             options['--password'] = getpass.getpass()
         server.login(password = options['--password'])
 
-    if server.isLoggedIn and options['-store-password']:
+    if server.isLoggedIn and options['--store-password']:
         keyring.set_password(KEYRING_SERVICE_NAME, options['--username'], options['--password'])
 
     if len(server.applications) == 0:
         server.fetchApplicationsList()
 
-    if len(server.applications) == 0:
+    if len(server.applications) == 0 and not options['create']:
         logging.info('No applications found.')
         return
         
     logging.debug(server.applications)
     if options['--application-id']:
         options['--application-id'] = int(options['--application-id'])
-
 
     if options['generate']:
         if options['--application-id']:
@@ -208,6 +224,43 @@ def main():
         else:
             application = server.getApplicationById(options['--application-id'])
             application.generateReviews(options['--latest-version'], options['--date-range'], options['--output-file'])
+
+        return
+
+    if options['binary']:
+        if platform.system() != 'Darwin':
+            logging.error('`binary` command is only available on OS X')
+            return
+
+        applicationId = int(options['--application-id'])
+        application = server.getApplicationById(applicationId)
+        application.getAppInfo()
+        versions = application.versions
+        version = next(version for versionString, version in versions.items() if version['status']['editable']), None)
+        if version == None:
+            logging.error('No editable version found.')
+            return
+
+        status = version['status'];
+        if APP_STATUS.can_be_rejected(version['status']) and not options['--reject-previous-upload']:
+            logging.error('Binary has already been received. You can automatically reject binary with -r (or --reject-previous-upload) param. See help for more details.')
+            return
+
+        # path = options['--binary-path']
+        # username = options['--username']
+        # password = options['--password']
+        # verbose = ''
+        # if options['--verbose']:
+        #     verbose = ' -verbose'
+
+        # os.system('security add-generic-password -s Xcode:itunesconnect.apple.com -a ' + username + ' -w ' + password + ' -U')
+
+        # if options['verify']:
+        #     os.system('xcrun -sdk iphoneos Validation' + verbose + ' -online ' + path)
+        # if options['upload']:
+        #     os.system('xcrun -sdk iphoneos Validation' + verbose + ' -online -upload ' + path)
+
+        # os.system('security delete-generic-password -s Xcode:itunesconnect.apple.com -a ' + username)
 
         return
 

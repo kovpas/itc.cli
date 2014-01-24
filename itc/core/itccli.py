@@ -156,7 +156,7 @@ def main():
             options['--password'] = getpass.getpass()
         server.login(password = options['--password'])
 
-    if server.isLoggedIn and options['-store-password']:
+    if server.isLoggedIn and options['--store-password']:
         keyring.set_password(KEYRING_SERVICE_NAME, options['--username'], options['--password'])
 
     if len(server.applications) == 0:

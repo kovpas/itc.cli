@@ -1,13 +1,13 @@
 """Command line interface for iTunesConnect (https://github.com/kovpas/itc.cli)
 
 Usage: 
-    itc login [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
-    itc update -c FILE [-a APP_ID] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
-    itc version -c FILE [-a APP_ID] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
-    itc create -c FILE [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
-    itc generate [-a APP_ID] [-e APP_VER] [-i] [-c FILE] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
-    itc promo -a APP_ID [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE] <amount>
-    itc reviews -a APP_ID [-d DATE] [-l] [-n] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE]
+    itc login [-n] [-k | -w] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc update -c FILE [-a APP_ID] [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc version -c FILE [-a APP_ID] [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc create -c FILE [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc generate [-a APP_ID] [-e APP_VER] [-i] [-c FILE] [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc promo -a APP_ID [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE] <amount>
+    itc reviews -a APP_ID [-d DATE] [-l] [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE]
     itc (-h | --help)
 
 Commands:
@@ -37,6 +37,8 @@ Options:
   -a --application-id APP_ID  Application id to process. This property has more priority than 'application id'
                                 in configuration file.
   -n --no-cookies             Remove saved authentication cookies and authenticate again.
+  -k --store-password         Store password in a system's secure storage. Removes authentication cookies first, so password has to be entered manually.
+  -w --delete-password        Remove stored password system's secure storage.
   -z                          Automatically click 'Continue' button if appears after login.
   -o --output-file FILE       Name of file to save promocodes or reviews to.
   -d --date-range DATERANGE   Get reviews specified with this date range. Format [date][-][date].
@@ -52,6 +54,7 @@ import platform
 import sys
 import json
 import getpass
+import keyring
 from copy import deepcopy 
 
 from itc.core.server import ITCServer
@@ -127,10 +130,11 @@ def main():
 
     logging.debug('args %s' % args)
 
-    if options['--no-cookies']:
+    if options['--no-cookies'] or options['--store-password']:
         logging.debug('Deleting cookie file: ' + cookie_file)
         if os.path.exists(cookie_file):
             os.remove(cookie_file)
+            cookie_jar.clear()
             logging.info('Removed authentication cookies')
         else:
             logging.debug('Cookie file doesn\'t exist')
@@ -138,12 +142,22 @@ def main():
     if options['--username'] == None:
         options['--username'] = raw_input('Username: ')
 
+    if options['--delete-password']:
+        keyring.delete_password(KEYRING_SERVICE_NAME, options['--username'])
+
+    if options['--password'] == None:
+        logging.debug('Looking for password in a secure storage. Username: ' + options['--username'])
+        options['--password'] = keyring.get_password(KEYRING_SERVICE_NAME, options['--username'])
+
     server = ITCServer(options['--username'], options['--password'])
 
     if not server.isLoggedIn:
         if options['--password'] == None:
             options['--password'] = getpass.getpass()
         server.login(password = options['--password'])
+
+    if server.isLoggedIn and options['-store-password']:
+        keyring.set_password(KEYRING_SERVICE_NAME, options['--username'], options['--password'])
 
     if len(server.applications) == 0:
         server.fetchApplicationsList()

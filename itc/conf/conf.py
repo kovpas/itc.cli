@@ -4,6 +4,7 @@ from cookielib import LWPCookieJar
 
 ITUNESCONNECT_URL = 'https://itunesconnect.apple.com'
 ITUNESCONNECT_MAIN_PAGE_URL = '/WebObjects/iTunesConnect.woa'
+KEYRING_SERVICE_NAME = 'itc.cli'
 
 class DEVICE_TYPE:
     iPad = 0

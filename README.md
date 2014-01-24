@@ -39,7 +39,7 @@ Installation
 ### Manual
 
 * Download sources somewhere on your computer
-* Install dependencies: [lxml](http://lxml.de/installation.html), [html5lib](http://code.google.com/p/html5lib/wiki/UserDocumentation), [requests](http://docs.python-requests.org/en/latest/user/install/) (v0.14.2), [docopt](https://github.com/docopt/docopt) (v0.6.1), [beautifulsoup](http://www.crummy.com/software/BeautifulSoup/) (v4.2.1)
+* Install dependencies: [lxml](http://lxml.de/installation.html), [html5lib](http://code.google.com/p/html5lib/wiki/UserDocumentation), [requests](http://docs.python-requests.org/en/latest/user/install/) (v0.14.2), [docopt](https://github.com/docopt/docopt) (v0.6.1), [beautifulsoup](http://www.crummy.com/software/BeautifulSoup/) (v4.2.1), [keyring](https://pypi.python.org/pypi/keyring#source-installation)
 * ````export PYTHONPATH=${PYTHONPATH}:/path/to/itc.cli/source/directory````
 * ````export PATH=${PATH}:/path/to/itc.cli/source/directory/itc/bin````
 
@@ -62,6 +62,13 @@ INFO:root:Application found: "App 2" (987654321)
 INFO:root:Nothing to do.
 
 Every time you run the script, it uses cookies which are stored in the file ````.itc-cli-cookies.txt```` and checks if cookies are still valid or script needs to log in again. That means that once you've entered your password, you don't need to enter it anymore as long as session is alive on iTunesConnect's servers. In case if you want to ignore cookie file and re-enter credentials, add ````--no-cookies```` parameter.
+
+You can also store password in a system's secure storage (like keychain on OS X), using ````--store-password```` key:  
+```` itc login --store-password --username apple_id````  
+Thus password will be taken from a secure storage every time session on iTunesConnect is expired.  
+
+You also can delete stored password, using ````--delete-password```` parameter:  
+```` itc login --delete-password --username apple_id````  
 
 Update application metadata
 =======

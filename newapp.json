@@ -21,10 +21,10 @@
     "application": {
         "new app": {
             "default language"       : "nl",
-            "name"                   : "testapp9.itc.com",
-            "sku number"             : "testapp9.itc.com",
+            "name"                   : "testapp10.itc.com",
+            "sku number"             : "testapp10.itc.com",
             "bundle id"              : "*",
-            "bundle id suffix"       : "testapp9.itc.com",
+            "bundle id suffix"       : "testapp10.itc.com",
             "availability date"      : "Jan 01 2014",
             "countries"              : {"type": "include", "list":["Iceland", "Fiji"]},
             "price tier"             : 0,

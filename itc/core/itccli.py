@@ -236,15 +236,17 @@ def main():
         application = server.getApplicationById(applicationId)
         application.getAppInfo()
         versions = application.versions
-        version = next(version for versionString, version in versions.items() if version['status']['editable']), None)
+        version = next((version for versionString, version in versions.items() if version['status']['editable']), None)
         if version == None:
             logging.error('No editable version found.')
             return
 
         status = version['status'];
-        if APP_STATUS.can_be_rejected(version['status']) and not options['--reject-previous-upload']:
+        if statuses.canBeRejected(version['status']) and not options['--reject-previous-upload']:
             logging.error('Binary has already been received. You can automatically reject binary with -r (or --reject-previous-upload) param. See help for more details.')
             return
+
+        application.setToWaitingForUpload(version)
 
         # path = options['--binary-path']
         # username = options['--username']

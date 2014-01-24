@@ -637,3 +637,8 @@ class ITCApplication(ITCImageUploader):
                 json.dump(reviews, fp, sort_keys=False, indent=4, separators=(',', ': '), ensure_ascii=False)
         else:
             print str(reviews).decode('unicode-escape')
+
+################## Binary uploading ##################
+    def setToWaitingForUpload(self, version):
+        tree = self._parser.parseTreeForURL(version['detailsLink'])
+        setReadyToUploadButton = "wrapper-topright-button" #TODO

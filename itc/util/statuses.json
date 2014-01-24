@@ -1,91 +1,91 @@
 {
     "Prepare for Upload": {
-        "id": 1,
+        "id": 0,
         "type": "WARNING",
         "editable": true
     },
     "Waiting For Upload": {
-        "id": 2,
+        "id": 1,
         "type": "WARNING",
         "editable": true
     },
     "Upload Received": {
-        "id": 3,
+        "id": 2,
         "type": "WARNING",
         "editable": true
     },
     "Waiting For Review": {
-        "id": 4,
+        "id": 3,
         "type": "WARNING",
         "editable": true
     },
     "In Review": {
-        "id": 5,
+        "id": 4,
         "type": "WARNING",
         "editable": false
     },
     "Pending Contract": {
-        "id": 6,
+        "id": 5,
         "type": "WARNING",
         "editable": false
     },
     "Waiting For Export Compliance": {
-        "id": 7,
+        "id": 6,
         "type": "WARNING",
         "editable": true
     },
     "Pending Developer Release": {
-        "id": 8,
+        "id": 7,
         "type": "WARNING",
         "editable": false
     },
     "Processing for App Store": {
-        "id": 9,
+        "id": 8,
         "type": "WARNING",
         "editable": false
     },
     "Pending Apple Release": {
-        "id": 10,
+        "id": 9,
         "type": "WARNING",
         "editable": false
     },
     "Ready for Sale": {
-        "id": 11,
+        "id": 10,
         "type": "OK",
         "editable": false
     },
     "Rejected": {
-        "id": 12,
+        "id": 11,
         "type": "ERROR",
         "editable": true
     },
     "Metadata Rejected": {
-        "id": 13,
+        "id": 12,
         "type": "ERROR",
         "editable": true
     },
     "Removed From Sale": {
-        "id": 14,
+        "id": 13,
         "type": "ERROR",
         "editable": false
     },
     "Developer Rejected": {
-        "id": 15,
+        "id": 14,
         "type": "ERROR",
         "editable": true
     },
     "Developer Removed From Sale": {
-        "id": 16,
+        "id": 15,
         "type": "ERROR",
         "editable": false
     },
     "Invalid Binary": {
-        "id": 17,
+        "id": 16,
         "type": "ERROR",
         "editable": true
     },
     "Missing Screenshot": {
-        "id": 18,
+        "id": 17,
         "type": "ERROR",
         "editable": true
     }

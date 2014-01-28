@@ -24,6 +24,8 @@ class BaseParser(object):
             raise
 
         if debugPrint or config.options['--verbose'] == 2:
+            if payload != None:
+                logging.debug(payload)
             if config.options['-f']:
                 logging.debug(BeautifulSoup(response.content).prettify())
             elif debugPrint:

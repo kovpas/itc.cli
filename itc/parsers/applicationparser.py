@@ -24,8 +24,9 @@ class ITCApplicationParser(BaseParser):
         customerReviewsLink = None
         if (len(customerReviewsLinkTree) > 0):
             customerReviewsLink = customerReviewsLinkTree[0]
+            logging.debug("Customer reviews link: " + manageInappsLink)
+
         logging.debug("Manage In-App purchases link: " + manageInappsLink)
-        logging.debug("Customer reviews link: " + manageInappsLink)
 
         versionsContainer = htmlTree.xpath("//h2[.='Versions']/following-sibling::div")
         if len(versionsContainer) == 0:
@@ -215,6 +216,23 @@ class ITCApplicationParser(BaseParser):
         metadata = AddVersionPageInfo(formNames=formNames
                                      , submitAction=submitAction
                                      , saveButton=saveButton)
+
+        return metadata
+
+    def getReadyToUploadActionButton(self, htmlTree):
+        action = getElement(htmlTree.xpath("//span[@class='wrapper-topright-button']/a/@href"), 0)
+        return action
+
+    def parseSaveExportCompatibilityPage(self, htmlTree):
+        ExportCompatibility = namedtuple('ExportCompatibility', ['continueButton', 'submitAction'])
+        continueButton = htmlTree.xpath("//input[@class='continueActionButton']/@name")
+        if (len(continueButton) == 0):
+            continueButton = htmlTree.xpath("//input[@class='saveChangesActionButton']/@name")
+
+        continueButton = continueButton[0].strip()
+        submitAction = htmlTree.xpath('//form[@name="mainForm"]/@action')[0]
+        metadata = ExportCompatibility(continueButton=continueButton
+                                     , submitAction=submitAction)
 
         return metadata
 

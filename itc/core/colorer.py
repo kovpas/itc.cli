@@ -80,7 +80,7 @@ def add_coloring_to_emit_ansi(fn):
         elif(levelno>=40):
             color = '\x1b[31m' # red
         elif(levelno>=30):
-            color = '\x1b[0m' # normal
+            color = '\x1b[33m' # normal
         elif(levelno>=20):
             color = '\x1b[0m' # normal
         elif(levelno>=10):

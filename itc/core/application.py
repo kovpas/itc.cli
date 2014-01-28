@@ -640,5 +640,33 @@ class ITCApplication(ITCImageUploader):
 
 ################## Binary uploading ##################
     def setToWaitingForUpload(self, version):
+        logging.debug('Changing status to \'Waiting for Upload\'')
+        isUpdate = len(self.versions) == 2
+
         tree = self._parser.parseTreeForURL(version['detailsLink'])
-        setReadyToUploadButton = "wrapper-topright-button" #TODO
+        setReadyToUploadButtonAction = self._parser.getReadyToUploadActionButton(tree)
+
+        logging.debug("'Ready to Upload Binary' button found: " + setReadyToUploadButtonAction)
+        tree = self._parser.parseTreeForURL(setReadyToUploadButtonAction)
+        metadata = self._parser.parseSaveExportCompatibilityPage(tree)
+        formData = {metadata.continueButton + '.x': 46, metadata.continueButton + '.y': 10}
+
+        if isUpdate:
+            formData['encryptionHasChanged'] = 'false'
+            formData['hasLegalIssues'] = 'false'
+        else:
+            formData['firstQuestionRadio'] = 'false'
+            formData['secondQuestionRadio'] = 'false'
+
+        resultTree = self._parser.parseTreeForURL(metadata.submitAction, method = "POST", payload = formData)
+        if isUpdate:
+            metadata = self._parser.parseSaveExportCompatibilityPage(resultTree)
+            formData = {metadata.continueButton + '.x': 46, metadata.continueButton + '.y': 10}
+
+            formData['goLive'] = 'true' if config.options['--manual-release'] else 'false'
+
+            resultTree = self._parser.parseTreeForURL(metadata.submitAction, method = "POST", payload = formData)
+
+        success = getElement(resultTree.xpath('//img[@class="status-icon"]/text()'), 0).strip()
+
+        return success == "Waiting For Upload"

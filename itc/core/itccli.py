@@ -5,7 +5,7 @@ Usage:
     itc create -c FILE [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc version -c FILE [-a APP_ID] [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc update -c FILE [-a APP_ID] [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
-    itc binary (upload [-r] | verify) -a APP_ID -b BINARY_PATH [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc binary [upload [-r] | verify] [--manual-release] -a APP_ID -b BINARY_PATH [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc generate [-a APP_ID] [-e APP_VER] [-i] [-c FILE] [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc promo -a APP_ID [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE] <amount>
     itc reviews -a APP_ID [-d DATE] [-l] [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE]
@@ -16,7 +16,8 @@ Commands:
   create                        Creates new app using information provided in a config file.
   version                       Creates new version of an existing app with information provided in a config file.
   update                        Update specified app with information provided in a config file.
-  binary upload (OS X only)     Upload distribution binary to iTunesConnect.
+  binary upload (OS X only)     Upload distribution binary to iTunesConnect. 
+                                  Answers 'no' on a question about cryptography.
   binary verify (OS X only)     Verify distribution binary with iTunesConnect.
   generate                      Generate configuration file for a specified application id and version.
                                   If no --application-id provided, configuration file for every 
@@ -59,6 +60,12 @@ Options:
                                 Path to an ipa binary.
   -r, --reject-previous-upload  Rejects binary if possible. Because it's potentially could cause problems,
                                   rejection when app is 'In Review' has to be done manually from iTunesConnect
+  --manual-release              Picks 'I will release app after it has been approved' 
+                                  if application is not in 'Waiting for Upload' state.
+                                  If this option is not set, 'Automatically release app once it has been approved' 
+                                  release option will be picked.
+
+
 
 
 """
@@ -86,7 +93,7 @@ def __parse_options():
     args = docopt(__doc__, version=__version__)
     conf.config.options = args
     globals()['options'] = args
-    log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    log_format = '%(asctime)s - %(name)s - %(filename)s:%(lineno)s - %(levelname)s - %(message)s'
     
     if args['--verbose']:
         logging.basicConfig(level=logging.DEBUG, format=log_format)
@@ -96,6 +103,7 @@ def __parse_options():
         
         logging.basicConfig(level=logging.INFO, format=log_format)
     else:
+        log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         requests_log = logging.getLogger('requests')
         requests_log.setLevel(logging.ERROR)
         
@@ -228,10 +236,6 @@ def main():
         return
 
     if options['binary']:
-        if platform.system() != 'Darwin':
-            logging.error('`binary` command is only available on OS X')
-            return
-
         applicationId = int(options['--application-id'])
         application = server.getApplicationById(applicationId)
         application.getAppInfo()
@@ -242,27 +246,37 @@ def main():
             return
 
         status = version['status'];
-        if statuses.canBeRejected(version['status']) and not options['--reject-previous-upload']:
-            logging.error('Binary has already been received. You can automatically reject binary with -r (or --reject-previous-upload) param. See help for more details.')
+        if statuses.canBeRejected(status) and not options['--reject-previous-upload']:
+            logging.error('Binary has already been received. You can enable automatic binary rejection with -r (or --reject-previous-upload) param. See help for more details.')
             return
 
-        application.setToWaitingForUpload(version)
+        if status["id"] != APP_STATUS.WAITING_FOR_UPLOAD:
+            application.setToWaitingForUpload(version)
 
-        # path = options['--binary-path']
-        # username = options['--username']
-        # password = options['--password']
-        # verbose = ''
-        # if options['--verbose']:
-        #     verbose = ' -verbose'
+        if options['verify'] or options['upload']:
+            if platform.system() != 'Darwin':
+                logging.error('binary uploading or verification is only available on OS X')
+                return
+                
+            path = options['--binary-path']
+            username = options['--username']
+            password = options['--password']
+            verbose = ''
+            if options['--verbose']:
+                verbose = ' -verbose'
 
-        # os.system('security add-generic-password -s Xcode:itunesconnect.apple.com -a ' + username + ' -w ' + password + ' -U')
+            os.system('security add-generic-password -s Xcode:itunesconnect.apple.com -a ' + username + ' -w ' + password + ' -U')
 
-        # if options['verify']:
-        #     os.system('xcrun -sdk iphoneos Validation' + verbose + ' -online ' + path)
-        # if options['upload']:
-        #     os.system('xcrun -sdk iphoneos Validation' + verbose + ' -online -upload ' + path)
+            command = ''
+            if options['verify']:
+                command = 'xcrun -sdk iphoneos Validation' + verbose + ' -online \"' + path + '\"'
+            elif options['upload']:
+                command = 'xcrun -sdk iphoneos Validation' + verbose + ' -online -upload \"' + path + '\"'
 
-        # os.system('security delete-generic-password -s Xcode:itunesconnect.apple.com -a ' + username)
+            logging.debug("Executing command: " + command)
+            os.system(command)
+
+            os.system('security -q delete-generic-password -s Xcode:itunesconnect.apple.com -a ' + username)
 
         return
 

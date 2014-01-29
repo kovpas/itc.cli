@@ -219,6 +219,10 @@ class ITCApplicationParser(BaseParser):
 
         return metadata
 
+    def isReadyToUploadSucceeded(self, htmlTree):
+        status = ''.join(htmlTree.xpath('//img[@class="status-icon"]/../text()')).strip()
+        return status == "Waiting For Upload"
+
     def getReadyToUploadActionButton(self, htmlTree):
         action = getElement(htmlTree.xpath("//span[@class='wrapper-topright-button']/a/@href"), 0)
         return action

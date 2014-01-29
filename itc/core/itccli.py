@@ -5,7 +5,7 @@ Usage:
     itc create -c FILE [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc version -c FILE [-a APP_ID] [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc update -c FILE [-a APP_ID] [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
-    itc binary [upload [-r] | verify] [--manual-release] -a APP_ID -b BINARY_PATH [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
+    itc binary (prepare [-r] | verify -b BINARY_PATH | upload [-r] -b BINARY_PATH) [--manual-release] -a APP_ID [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc generate [-a APP_ID] [-e APP_VER] [-i] [-c FILE] [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s]
     itc promo -a APP_ID [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE] <amount>
     itc reviews -a APP_ID [-d DATE] [-l] [-n] [-k] [-u USERNAME] [-p PASSWORD] [-z] [-v | -vv [-f] | -s] [-o FILE]
@@ -16,9 +16,10 @@ Commands:
   create                        Creates new app using information provided in a config file.
   version                       Creates new version of an existing app with information provided in a config file.
   update                        Update specified app with information provided in a config file.
+  binary prepare                Set application status to "Waiting for Upload".
+  binary verify (OS X only)     Verify distribution binary with iTunesConnect.
   binary upload (OS X only)     Upload distribution binary to iTunesConnect. 
                                   Answers 'no' on a question about cryptography.
-  binary verify (OS X only)     Verify distribution binary with iTunesConnect.
   generate                      Generate configuration file for a specified application id and version.
                                   If no --application-id provided, configuration file for every 
                                   application found will be created.
@@ -251,13 +252,17 @@ def main():
             return
 
         if status["id"] != APP_STATUS.WAITING_FOR_UPLOAD:
-            application.setToWaitingForUpload(version)
+            result = application.setToWaitingForUpload(version)
+            if not result:
+                logging.error('Couldn\'t set application to "Waiting to Upload" state')
+                return
+            logging.info('Successfuly set application state to "Waiting to Upload"')
 
         if options['verify'] or options['upload']:
             if platform.system() != 'Darwin':
                 logging.error('binary uploading or verification is only available on OS X')
                 return
-                
+
             path = options['--binary-path']
             username = options['--username']
             password = options['--password']

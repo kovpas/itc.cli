@@ -667,6 +667,4 @@ class ITCApplication(ITCImageUploader):
 
             resultTree = self._parser.parseTreeForURL(metadata.submitAction, method = "POST", payload = formData)
 
-        success = getElement(resultTree.xpath('//img[@class="status-icon"]/text()'), 0).strip()
-
-        return success == "Waiting For Upload"
+        return self._parser.isReadyToUploadSucceeded(resultTree)

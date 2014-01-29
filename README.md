@@ -15,8 +15,15 @@ Have you ever had to create 1000 inapp purchases by template? Or may be to uploa
 &bull; [Installation](#installation)  
 &bull; [iTC login](#itc-login)  
 &bull; [Update application metadata](#update-application-metadata)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Metadata](#metadata)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [In-App purchases](#in-app-purchases)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Application review notes](#application-review-notes)  
 &bull; [Create new application](#create-new-application)  
 &bull; [Create new application version](#create-new-application-version)  
+&bull; [Set application to 'Waiting for Upload' state](#set-application-to-waiting-for-upload-state)  
+&bull; [Manage ipa binary](#manage-ipa-binary)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Verify binary](#verify-binary)  
+&nbsp;&nbsp;&nbsp;&nbsp;&bull; [Upload binary](#upload-binary)  
 &bull; [Promo codes](#promo-codes)  
 &bull; [Reviews](#reviews)  
 &bull; [Logging](#logging)  
@@ -425,6 +432,24 @@ Automagically generate config file
 =======
 
 With ````generate```` command script creates json file ({application_id}.json), which contains metadata for each language of the application. In case if no ````--application-id```` parameter passed to script, it iterates through all the applications for current account. If you want to include inapps into a generated configuration file, add ````--generate-config-inapp```` parameter.
+
+Set application to 'Waiting for Upload' state
+=======
+
+````itc binary prepare --application-id APP_ID```` sets application to a 'Waiting for Upload' state. Answers "No" for all the questions about cryptography and legal issues. If you're releasing an update, by default automatic version release scheduled. With ````--manual-release```` param you can change that to manual release.
+
+Manage ipa binary
+=======
+
+Verify binary
+------
+
+````itc binary verify --application-id APP_ID --binary-path BINARY_PATH```` verifies binary with iTunesConnect. Sets application state to "Waiting for Upload", as soon as it's required for verification.
+
+Upload binary
+------
+
+````itc binary upload --application-id APP_ID --binary-path BINARY_PATH```` uploads binary with iTunesConnect. Sets application state to "Waiting for Upload" if it's not set yet.
 
 Promo codes
 =======

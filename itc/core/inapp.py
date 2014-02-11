@@ -234,10 +234,9 @@ class ITCInappPurchase(object):
 
         inapptype = self.type
         newInappLink = tree.xpath('//form[@name="mainForm"]/@action')[0]
-        formKeyName = tree.xpath('//div[@class="type-section"]/h3[.="' + inapptype + '"]/following-sibling::input/@name')[0]
+        newInappTypeLink = tree.xpath('//div[@class="type-section"]/h3[.="' + inapptype + '"]/following-sibling::a/@href')[0]
         
-        formData = {formKeyName + '.x': 46, formKeyName + '.y': 10}
-        inappTree = self._parser.parseTreeForURL(newInappLink, method="POST", payload=formData)
+        inappTree = self._parser.parseTreeForURL(newInappTypeLink, method="GET")
 
         if ITCInappPurchase.actionURLs == None:
             inappsActionScript = inappTree.xpath('//script[contains(., "var arguments")]/text()')[0]

@@ -16,6 +16,7 @@ from itc.parsers.applicationparser import ITCApplicationParser
 from itc.util import languages
 from itc.util import dataFromStringOrFile
 from itc.util import EnhancedFile
+from itc.util import getElement
 from itc.conf import *
 
 class ITCApplication(ITCImageUploader):
@@ -402,13 +403,19 @@ class ITCApplication(ITCImageUploader):
         if ITCInappPurchase.createInappLink == None:
             ITCInappPurchase.createInappLink = self._createInappLink
 
-        refreshContainerTree = tree.xpath('//span[@id="ajaxListListRefreshContainerId"]/ul')[0]
-        self.inapps = self.__parseInappsFromTree(refreshContainerTree)
+        refreshContainerTree = getElement(tree.xpath('//span[@id="ajaxListListRefreshContainerId"]/ul'), 0, None)
+        if refreshContainerTree == None:
+            self.inapps = {}
+        else:
+            self.inapps = self.__parseInappsFromTree(refreshContainerTree)
 
 
     def getInappById(self, inappId):
         if self._inappActionURLs == None:
             self.getInapps()
+
+        if len(self.inapps) == 0:
+            return None
 
         if type(inappId) is int:
             inappId = str(inappId)

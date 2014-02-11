@@ -311,3 +311,7 @@ class ITCServer(ITCImageUploader):
         if errors != None and len(errors) != 0:
             for error in errors:
                 logging.error(error)
+        else:
+            idText = finalPageTree.xpath("//div[@id='column-bg']/div/p/label[.='Apple ID']/../span/text()")
+            if len(idText) > 0:
+                logging.info('Successfully created application. ID: ' + idText[0])

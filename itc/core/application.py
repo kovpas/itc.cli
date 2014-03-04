@@ -116,6 +116,10 @@ class ITCApplication(ITCImageUploader):
             versionString = next((versionString for versionString, version in self.versions.items() if version['editable']), None)
         if versionString == None: # No versions to edit. Generate config from the first one
             versionString = self.versions.keys()[0]
+
+        if self.versions[versionString]['editable'] == False:
+            logging.error("Can't generate config for non-editable version.")
+            return
         
         resultDict = self.__generateConfigForVersion(self.versions[versionString])
 
@@ -619,24 +623,36 @@ class ITCApplication(ITCImageUploader):
         percentDone = 0
         percentStep = 100.0 / len(metadata.countries)
         totalReviews = 0
+        totalScore = 0
         for countryName, countryId in metadata.countries.items():
             logging.debug('Fetching reviews for ' + countryName)
             formData = {metadata.countriesSelectName: countryId}
             postFormResponse = self._parser.requests_session.post(ITUNESCONNECT_URL + metadata.countryFormSubmitAction, data = formData, cookies=cookie_jar)
-            reviewsForCountry = self._parser.parseReviews(postFormResponse.content, minDate=minDate, maxDate=maxDate)
-            if reviewsForCountry != None and len(reviewsForCountry) != 0:
-                reviews[countryName] = reviewsForCountry
-                totalReviews = totalReviews + len(reviewsForCountry)
-            if not config.options['--silent'] and not config.options['--verbose']:
-                percentDone = percentDone + percentStep
-                print >> sys.stdout, "\r%d%%" %percentDone,
-                sys.stdout.flush()
+            reviewsTuple = self._parser.parseReviews(postFormResponse.content, minDate=minDate, maxDate=maxDate)
+            if (reviewsTuple != None):
+                reviewsForCountry = reviewsTuple[0]
+                totalScoreForCountry = reviewsTuple[1]
+                if reviewsForCountry != None and len(reviewsForCountry) != 0:
+                    reviews[countryName] = reviewsForCountry
+                    totalReviews = totalReviews + len(reviewsForCountry)
+                    totalScore = totalScore + totalScoreForCountry
+                if not config.options['--silent'] and not config.options['--verbose']:
+                    percentDone = percentDone + percentStep
+                    print >> sys.stdout, "\r%d%%" %percentDone,
+                    sys.stdout.flush()
+                amountOfReviewsForCountry = len(reviewsForCountry)
+                logging.debug('Got {0} reviews for {1}. Average mark is {2:.3f}'.format(amountOfReviewsForCountry, countryName, float(totalScoreForCountry) / amountOfReviewsForCountry) )
+            else:
+                logging.debug('No reviews for ' + countryName)
 
         if not config.options['--silent'] and not config.options['--verbose']:
             print >> sys.stdout, "\rDone\n",
             sys.stdout.flush()
 
         logging.info("Got %d reviews." % totalReviews)
+        if totalReviews > 0:
+            logging.info("Average mark is {0:.3f}".format(float(totalScore) / totalReviews))
+
 
         if outputFileName:
             with codecs.open(outputFileName, 'w', 'utf-8') as fp:

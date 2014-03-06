@@ -1,3 +1,4 @@
+# encoding: utf-8
 """Command line interface for iTunesConnect (https://github.com/kovpas/itc.cli)
 
 Usage: 
@@ -84,7 +85,6 @@ def __parse_options():
         requests_log.setLevel(logging.ERROR)
         
         logging.basicConfig(level=logging.ERROR, format=log_format)
-
     return args
 
 def __parse_configuration_file():

@@ -17,18 +17,20 @@ Have you ever had to create 1000 inapp purchases by template? Or may be to uploa
 &bull; [Update application metadata](#update-application-metadata)  
 &bull; [Create new application](#create-new-application)  
 &bull; [Create new application version](#create-new-application-version)  
+&bull; [Automagically generate config file](#automagically-generate-config-file)  
 &bull; [Promo codes](#promo-codes)  
 &bull; [Reviews](#reviews)  
 &bull; [Logging](#logging)  
 &bull; [Roadmap](#roadmap)  
 &bull; [License](#license)  
+
 Installation
 =======
 
 ### Automatic
 
-* Install [pip](http://www.pip-installer.org/en/latest/installing.html)
-* ````[sudo] pip install [--upgrade] itc.cli```` (use upgrade in case if you already have itc linstalled)
+* ````curl https://raw.github.com/pypa/pip/master/contrib/get-pip.py | sudo python```` (Install [pip](http://www.pip-installer.org/en/latest/installing.html))
+* ````[sudo] pip install [--upgrade] itc.cli```` (use upgrade if you already have itc linstalled)
 
 ### Semi-automatic
 
@@ -420,7 +422,6 @@ This file should contain ````application```` dictionary with the following field
 }
 ````
 
-
 Automagically generate config file
 =======
 
@@ -452,7 +453,6 @@ Date format could be ````dd/mm/yyyy````, ````today````, ````yesterday```` or a n
 
 ````./itc/bin/itc reviews ... -d yesterday```` - reviews for yesterday (not including today! to include today, use ````yesterday-````)  
 ````./itc/bin/itc reviews ... -d 6-```` - reviews for last 6 days  
-
 
 Logging
 =======  

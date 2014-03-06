@@ -255,6 +255,10 @@ class ITCApplicationParser(BaseParser):
         return link[0].strip()
 
     def getReviewsPageMetadata(self, tree):
+        noReviews = tree.xpath('//div[@class="no-reviews"]')
+        if len(noReviews) > 0:
+            return None
+
         ReviewsPageInfo = namedtuple('ReviewsPageInfo', ['countries', 'countriesSelectName', 'countryFormSubmitAction', 'allVersions', 'currentVersion', 'allReviews'])
         countriesSelectName = tree.xpath('//select/@name')[0].strip()
         countriesSelect = tree.xpath('//select/option')

@@ -608,10 +608,15 @@ class ITCApplication(ITCImageUploader):
                     maxDate = minDate
                     minDate = tmpDate
 
-        logging.debug('From: %s' %minDate)
-        logging.debug('To: %s' %maxDate)
         tree = self._parser.parseTreeForURL(self._customerReviewsLink)
         metadata = self._parser.getReviewsPageMetadata(tree)
+
+        if metadata == None: # no reviews
+            logger.info('There are currently no customer reviews for this app.')
+            return
+
+        logging.debug('From: %s' %minDate)
+        logging.debug('To: %s' %maxDate)
         if (latestVersion):
             tree = self._parser.parseTreeForURL(metadata.currentVersion)
         else:

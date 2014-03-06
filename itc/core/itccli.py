@@ -166,7 +166,6 @@ def main():
         logging.info('No applications found.')
         return
         
-    logging.debug(server.applications)
     if options['--application-id']:
         options['--application-id'] = int(options['--application-id'])
 

@@ -255,6 +255,10 @@ class ITCApplicationParser(BaseParser):
         return link[0].strip()
 
     def getReviewsPageMetadata(self, tree):
+        noReviews = tree.xpath('//div[@class="no-reviews"]')
+        if len(noReviews) > 0:
+            return None
+
         ReviewsPageInfo = namedtuple('ReviewsPageInfo', ['countries', 'countriesSelectName', 'countryFormSubmitAction', 'allVersions', 'currentVersion', 'allReviews'])
         countriesSelectName = tree.xpath('//select/@name')[0].strip()
         countriesSelect = tree.xpath('//select/option')
@@ -284,6 +288,8 @@ class ITCApplicationParser(BaseParser):
             return None
 
         reviews = []
+        totalMark = 0
+
         for reviewDiv in reviewDivs:
             review = {} 
             reviewerString = getElement(reviewDiv.xpath('./p[@class="reviewer"]'), 0).text.strip()
@@ -301,8 +307,9 @@ class ITCApplicationParser(BaseParser):
             title = getElement(reviewDiv.xpath('./p[@class="reviewer-title"]'), 0).text.strip()
             review['title'] = title.replace(u'★', '').strip()
             review['mark'] = len(title.replace(review['title'], '').strip())
+            totalMark = totalMark + review['mark']
 
             review['text'] = getElement(reviewDiv.xpath('./p[@class="review-text"]'), 0).text.strip()
             reviews.append(review)
 
-        return reviews
+        return reviews, totalMark

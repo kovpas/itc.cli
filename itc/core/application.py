@@ -612,7 +612,7 @@ class ITCApplication(ITCImageUploader):
         metadata = self._parser.getReviewsPageMetadata(tree)
 
         if metadata == None: # no reviews
-            logger.info('There are currently no customer reviews for this app.')
+            logging.info('There are currently no customer reviews for this app.')
             return
 
         logging.debug('From: %s' %minDate)

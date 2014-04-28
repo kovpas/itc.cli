@@ -244,7 +244,7 @@ class ITCServerParser(BaseParser):
 
         for ratingTr in appRatingTable:
             inputs = ratingTr.xpath('.//input')
-            if len(inputs) != 2:
+            if len(inputs) < 2:
                 continue
             appRating = {'name': inputs[0].attrib['name'], 'ratings': []}
             for inpt in inputs:

@@ -169,7 +169,6 @@ def main():
     if options['--application-id']:
         options['--application-id'] = int(options['--application-id'])
 
-
     if options['generate']:
         if options['--application-id']:
             if options['--application-id'] in server.applications: 
@@ -191,7 +190,7 @@ def main():
         if not options['--application-id'] in server.applications: 
             logging.error("Provide correct application id (--application-id or -a option)")
         else:
-            application = server.getApplicationById(options['--application-id'])
+            application = server.applications[options['--application-id']]
             promocodes = application.getPromocodes(options['<amount>'])
             if options['--output-file']:
                 with open(options['--output-file'], 'a') as outFile:

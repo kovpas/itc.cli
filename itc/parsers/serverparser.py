@@ -1,8 +1,10 @@
 import logging
 from collections import namedtuple
+from itc.conf import *
 
 from itc.parsers.baseparser import BaseParser
 import pprint
+import re
 
 ApplicationData = namedtuple('SessionURLs', ['name', 'applicationId', 'link'])
 
@@ -30,38 +32,26 @@ class ITCServerParser(BaseParser):
 
 
     def parseSessionURLs(self, htmlTree):
-        manageAppsLink = htmlTree.xpath("//a[.='Manage Your Apps']")
-        if len(manageAppsLink) == 0:
-            raise
+        logoutURL = htmlTree.xpath("//script/text()[contains(., 'logout')]")[0]
+        matches = re.findall('var\slogouturl\s=\s"([^\"]+)"', logoutURL)
 
-        signOutLink = htmlTree.xpath("//li[contains(@class, 'sign-out')]/a[.='Sign Out']")
-        if len(signOutLink) == 0:
-            raise
+        self._logoutURL = matches[0]
 
-        self._manageAppsURL = manageAppsLink[0].attrib['href']
-        self._logoutURL = signOutLink[0].attrib['href']
+        obj = self.parseTreeForURL(ITUNESCONNECT_MAIN_PAGE_URL + '/ra/nav/header/modules', isJSON=True)
+        data = self.mapModulesJson(obj['data'])
+        self._manageAppsURL = data['My Apps']['linkUrl']
 
-        logging.debug('manage apps url: ' + self._manageAppsURL)
+        logging.debug('manage apps url: ' + data['My Apps']['linkUrl'])
         logging.debug('logout url: ' + self._logoutURL)
 
+    def mapModulesJson(self, jsonToMap):
+        result = {}
+        for data in jsonToMap:
+            result[data['name']] = data
+        return result
 
     def __getInternalURLs(self):
-        tree = self.parseTreeForURL(self._manageAppsURL)
-
-        seeAllDiv = tree.xpath("//div[@class='seeAll']")[0]
-        seeAllLink = seeAllDiv.xpath(".//a[starts-with(., 'See All')]")
-
-        if len(seeAllLink) == 0:
-            raise
-
-        self._getApplicationListURL = seeAllLink[0].attrib['href']
-
-        createAppLink = tree.xpath("//span[@class='upload-app-button']/a")
-
-        if len(createAppLink) == 0:
-            raise
-
-        self._createAppURL = createAppLink[0].attrib['href']
+        self._getApplicationListURL = ITUNESCONNECT_MAIN_PAGE_URL + '/ra/apps/manageyourapps/summary'
 
     def getApplicationDataById(self, _applicationId):
         if self._manageAppsURL == None:
@@ -71,35 +61,14 @@ class ITCServerParser(BaseParser):
             self.__getInternalURLs()
 
         result = None
-        nextLink = self._getApplicationListURL;
-        while (nextLink != None):
-            appsTree = self.parseTreeForURL(nextLink)
-            nextLinkDiv = appsTree.xpath("//td[@class='previous']")
-            if len(nextLinkDiv) > 0:
-                nextLink = nextLinkDiv[0].xpath(".//a[contains(., ' Previous')]/@href")[0]
-            else:
-                nextLink = None
-
-        nextLink = self._getApplicationListURL;
-        while (nextLink != None) and (result == None):
-            appsTree = self.parseTreeForURL(nextLink)
-            applicationRows = appsTree.xpath("//div[@id='software-result-list'] \
-                            /div[@class='resultList']/table/tbody/tr[not(contains(@class, 'column-headers'))]")
-            for applicationRow in applicationRows:
-                tds = applicationRow.xpath("td")
-                applicationId = int(tds[4].xpath(".//p")[0].text.strip())
-                if (applicationId == _applicationId):
-                    nameLink = tds[0].xpath(".//a")
-                    name = nameLink[0].text.strip()
-                    link = nameLink[0].attrib["href"]
-                    result = ApplicationData(name=name, link=link, applicationId=applicationId)
-                    break;
-
-            nextLinkDiv = appsTree.xpath("//td[@class='next']")
-            if len(nextLinkDiv) > 0:
-                nextLink = nextLinkDiv[0].xpath(".//a[starts-with(., ' Next')]/@href")[0]
-            else:
-                nextLink = None
+        summaries = self.parseTreeForURL(self._getApplicationListURL, isJSON=True)
+        for data in summaries['data']['summaries']:
+            applicationId = data['adamId']
+            if (applicationId == _applicationId):
+                name = data['name']
+                link = ITUNESCONNECT_MAIN_PAGE_URL + '/ra/ng/app/' + applicationId
+                result = ApplicationData(name=name, link=link, applicationId=int(applicationId))
+                break;
 
         return result
 
@@ -111,24 +80,12 @@ class ITCServerParser(BaseParser):
             self.__getInternalURLs()
 
         result = []
-        nextLink = self._getApplicationListURL;
-        while nextLink!=None:
-            appsTree = self.parseTreeForURL(nextLink)
-            applicationRows = appsTree.xpath("//div[@id='software-result-list'] \
-                            /div[@class='resultList']/table/tbody/tr[not(contains(@class, 'column-headers'))]")
-            for applicationRow in applicationRows:
-                tds = applicationRow.xpath("td")
-                nameLink = tds[0].xpath(".//a")
-                name = nameLink[0].text.strip()
-                link = nameLink[0].attrib["href"]
-                applicationId = int(tds[4].xpath(".//p")[0].text.strip())
-                result.append(ApplicationData(name=name, link=link, applicationId=applicationId))
-
-            nextLinkDiv = appsTree.xpath("//td[@class='next']")
-            if len(nextLinkDiv) > 0:
-                nextLink = nextLinkDiv[0].xpath(".//a[starts-with(., ' Next')]/@href")[0]
-            else:
-                nextLink = None
+        summaries = self.parseTreeForURL(self._getApplicationListURL, isJSON=True)
+        for data in summaries['data']['summaries']:
+            applicationId = data['adamId']
+            name = data['name']
+            link = ITUNESCONNECT_MAIN_PAGE_URL + '/ra/ng/app/' + applicationId
+            result.append(ApplicationData(name=name, link=link, applicationId=int(applicationId)))
 
         return result
 

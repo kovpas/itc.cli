@@ -528,25 +528,8 @@ class ITCApplication(ITCImageUploader):
 ################## Promo codes management ##################
 
     def getPromocodes(self, amount):
-        if len(self.versions) == 0:
-            self.getAppInfo()
-        if len(self.versions) == 0:
-            raise 'Can\'t get application versions'
-
-        # We need non-editable version to get promocodes from
-        versionString = next((versionString for versionString, version in self.versions.items() if version['statusString'] == "Ready for Sale"), None)
-        if versionString == None:
-            raise 'No "Ready for Sale" versions found'
-            
-        version = self.versions[versionString]
-        if version['editable']:
-            raise 'Version ' + versionString + ' is editable.'
-
-        #get promocodes link
-        logging.info('Getting promocodes link')
-        tree = self._parser.parseTreeForURL(version['detailsLink'])
-        promocodesLink = self._parser.getPromocodesLink(tree)
-        logging.debug('Promocodes link: ' + promocodesLink)
+        promocodesLink = ITUNESCONNECT_MAIN_PAGE_URL + '/wa/LCAppPage/viewPromoCodes?adamId=' + str(self.applicationId) + '&versionString=latest'
+        logging.debug('Promocodes link: ' + ITUNESCONNECT_URL + promocodesLink)
 
         #enter number of promocodes
         logging.info('Requesting promocodes: ' + amount)

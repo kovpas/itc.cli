@@ -2,9 +2,12 @@ import logging
 
 import requests
 from bs4 import BeautifulSoup
+import json
 
 from itc.parsers import htmlParser
 from itc.conf import *
+
+__cookies__ = None
 
 class BaseParser(object):
     parser = None
@@ -13,15 +16,20 @@ class BaseParser(object):
         self.requests_session = requests.session()
         self.parser = htmlParser
 
-    def parseTreeForURL(self, url, method="GET", payload=None, debugPrint=False):
+    def parseTreeForURL(self, url, method="GET", payload=None, debugPrint=False, isJSON=False):
         response = None
         if method == "GET":
-            response = self.requests_session.get(ITUNESCONNECT_URL + url, cookies=cookie_jar)
+            response = self.requests_session.get(ITUNESCONNECT_URL + url, cookies=globals()['__cookies__'])
         elif method == "POST":
-            response = self.requests_session.post(ITUNESCONNECT_URL + url, payload, cookies=cookie_jar)
+            response = self.requests_session.post(ITUNESCONNECT_URL + url, payload, cookies=globals()['__cookies__'])
 
         if response == None:
             raise
+
+        if not globals()['__cookies__']:
+            globals()['__cookies__'] = response.cookies
+
+        print globals()['__cookies__']
 
         if debugPrint or config.options['--verbose'] == 2:
             if config.options['-f']:
@@ -35,4 +43,7 @@ class BaseParser(object):
             logging.error('Wrong response from itunesconnect. Status code: ' + str(response.status_code) + '. Content:\n' + response.text)
             return None
 
-        return self.parser.parse(response.text)
+        if not isJSON:
+            return self.parser.parse(response.text)
+
+        return json.loads(response.text)
